@@ -1,0 +1,5 @@
+FILE: Main.kt
+    public final fun main(): R|kotlin/Unit| {
+        R|kotlin/io/println|(String(Hello world!))
+    }
+

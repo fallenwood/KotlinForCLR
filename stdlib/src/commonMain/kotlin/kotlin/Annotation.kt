@@ -1,0 +1,3 @@
+package kotlin
+
+interface Annotation

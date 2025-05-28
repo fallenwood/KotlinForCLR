@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KotlinCLR", "KotlinCLR\KotlinCLR.csproj", "{1E84C67E-B7D8-4618-95E0-72675EE7DCFF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "kotlin-stdlib", "kotlin-stdlib\kotlin-stdlib.csproj", "{FDA1DDCC-1FBB-45FA-951C-ACE4C0AD2BD3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KotlinCLRBackendCompiler", "AssemblyResolver\KotlinCLRBackendCompiler.csproj", "{59219A47-6FB4-462D-97E6-F8FF86C2A80B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1E84C67E-B7D8-4618-95E0-72675EE7DCFF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1E84C67E-B7D8-4618-95E0-72675EE7DCFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1E84C67E-B7D8-4618-95E0-72675EE7DCFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1E84C67E-B7D8-4618-95E0-72675EE7DCFF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FDA1DDCC-1FBB-45FA-951C-ACE4C0AD2BD3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FDA1DDCC-1FBB-45FA-951C-ACE4C0AD2BD3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FDA1DDCC-1FBB-45FA-951C-ACE4C0AD2BD3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FDA1DDCC-1FBB-45FA-951C-ACE4C0AD2BD3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{59219A47-6FB4-462D-97E6-F8FF86C2A80B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{59219A47-6FB4-462D-97E6-F8FF86C2A80B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{59219A47-6FB4-462D-97E6-F8FF86C2A80B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{59219A47-6FB4-462D-97E6-F8FF86C2A80B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
