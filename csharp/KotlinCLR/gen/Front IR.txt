@@ -1,5 +1,8 @@
 FILE: Main.kt
     public final fun main(): R|kotlin/Unit| {
-        R|kotlin/io/println|(String(Hello world!))
+        R|kotlin/io/println|(String(Enter any word: ))
+        lval yourWord: R|kotlin/String?| = R|kotlin/io/readln|()
+        R|kotlin/io/print|(String(You entered the word: ))
+        R|kotlin/io/print|(R|<local>/yourWord|)
     }
 

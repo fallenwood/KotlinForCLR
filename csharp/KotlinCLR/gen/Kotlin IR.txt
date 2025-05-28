@@ -3,5 +3,11 @@ MODULE_FRAGMENT name:<main>
     FUN name:main visibility:public modality:FINAL <> () returnType:kotlin.Unit
       BLOCK_BODY
         CALL 'public final fun println (message: kotlin.Any?): kotlin.Unit declared in kotlin.io.ConsoleKt' type=kotlin.Unit origin=null
-          message: CONST String type=kotlin.String value="Hello world!"
+          message: CONST String type=kotlin.String value="Enter any word: "
+        VAR name:yourWord type:kotlin.String? [val]
+          CALL 'public final fun readln (): kotlin.String? declared in kotlin.io.ConsoleKt' type=kotlin.String? origin=null
+        CALL 'public final fun print (message: kotlin.Any?): kotlin.Unit declared in kotlin.io.ConsoleKt' type=kotlin.Unit origin=null
+          message: CONST String type=kotlin.String value="You entered the word: "
+        CALL 'public final fun print (message: kotlin.Any?): kotlin.Unit declared in kotlin.io.ConsoleKt' type=kotlin.Unit origin=null
+          message: GET_VAR 'val yourWord: kotlin.String? [val] declared in <root>.main' type=kotlin.String? origin=null
 

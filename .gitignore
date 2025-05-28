@@ -5,4 +5,10 @@ build/
 *.iml
 *.ipr
 .kotlin
-/app/out/
+/compiler/out/
+/csharp/AssemblyResolver/bin/
+/csharp/AssemblyResolver/obj/
+/csharp/kotlin-stdlib/bin/
+/csharp/kotlin-stdlib/obj/
+/csharp/KotlinCLR/bin/
+/csharp/KotlinCLR/obj/
