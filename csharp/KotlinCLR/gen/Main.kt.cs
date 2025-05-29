@@ -2,10 +2,11 @@ public sealed class MainKt
 {
     public static void main()
     {
-        global::kotlin.io.ConsoleKt.println("Enter any word: ");
-        global::System.String yourWord = global::kotlin.io.ConsoleKt.readln();
-        global::kotlin.io.ConsoleKt.print("You entered the word: ");
-        global::kotlin.io.ConsoleKt.print(yourWord);
+        global::kotlin.io.ConsoleKt.println("sum(1, 2) = " + global::MainKt.sum(1, 2));
+    }
+    public static global::System.Int32 sum(global::System.Int32 a, global::System.Int32 b)
+    {
+        return a + b;
     }
     public static void Main(global::System.String[] args)
     {

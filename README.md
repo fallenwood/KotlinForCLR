@@ -2,6 +2,18 @@
 
 这是一个 Kotlin CLR 后端编译器, 旨在将 Kotlin 代码编译为 .NET CIL, 使得 Kotlin 开发者可以在 .NET 平台上使用 Kotlin 语言进行开发<br>
 
+## 样例
+
+### [Read from the standard input](https://kotlinlang.org/docs/basic-syntax.html#read-from-the-standard-input)
+
+![Kotlin](./img/Read%20from%20the%20standard%20input/Kotlin.png)
+![C#](./img/Read%20from%20the%20standard%20input/CSharp.png)
+
+### [Functions](https://kotlinlang.org/docs/basic-syntax.html#functions)
+
+![Kotlin](./img/Functions/Kotlin.png)
+![C#](./img/Functions/CSharp.png)
+
 ## 项目结构
 - `compiler` 编译器核心, 使用 Kotlin/JVM 编写, 依赖官方的 kotlin-compiler-embeddable
   - `home` kotlin-home
@@ -37,3 +49,5 @@
 
 ## 为什么使用 C# 编写标准库而不是 Kotlin?
 编译器还没搓完, 部分语法还没支持, 编译 Kotlin 标准库会报错(x
+
+## [交流群](https://qm.qq.com/q/ed5aIJqOrK)

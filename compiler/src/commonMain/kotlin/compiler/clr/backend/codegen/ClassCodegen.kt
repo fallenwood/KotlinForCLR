@@ -12,14 +12,10 @@ import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
+import org.jetbrains.kotlin.ir.symbols.IrValueSymbol
 import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
-import org.jetbrains.kotlin.ir.util.defaultType
-import org.jetbrains.kotlin.ir.util.statements
-import org.jetbrains.kotlin.ir.util.getPackageFragment
-import org.jetbrains.kotlin.ir.util.isFakeOverride
-import org.jetbrains.kotlin.ir.util.render
-import org.jetbrains.kotlin.ir.util.isStatic
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.javac.resolve.classId
 import org.jetbrains.kotlin.name.SpecialNames
 
@@ -79,8 +75,9 @@ class ClassCodegen(val context: ClrBackendContext) {
 			appendLine()
 			append(
 				declarations.filterIsInstance<IrFunction>()
-				.filterNot { it.isFakeOverride }
-				.joinToString("\n") { it.visit(padding + 1) })
+					.filterNot { it.isFakeOverride }
+					.joinToString("\n") { it.visit(padding + 1) }
+			)
 			appendLine()
 			repeat(padding) { append("    ") }
 			append("}")
@@ -97,8 +94,9 @@ class ClassCodegen(val context: ClrBackendContext) {
 			appendLine()
 			append(
 				declarations.filterIsInstance<IrFunction>()
-				.filterNot { it.isFakeOverride }
-				.joinToString("\n") { it.visit(padding + 1) })
+					.filterNot { it.isFakeOverride }
+					.joinToString("\n") { it.visit(padding + 1) }
+			)
 			appendLine()
 			repeat(padding) { append("    ") }
 			append("}")
@@ -115,8 +113,9 @@ class ClassCodegen(val context: ClrBackendContext) {
 			appendLine()
 			append(
 				declarations.filterIsInstance<IrFunction>()
-				.filterNot { it.isFakeOverride }
-				.joinToString("\n") { it.visit(padding + 1) })
+					.filterNot { it.isFakeOverride }
+					.joinToString("\n") { it.visit(padding + 1) }
+			)
 			appendLine()
 			repeat(padding) { append("    ") }
 			append("}")
@@ -134,8 +133,9 @@ class ClassCodegen(val context: ClrBackendContext) {
 			appendLine()
 			append(
 				declarations.filterIsInstance<IrFunction>()
-				.filterNot { it.isFakeOverride }
-				.joinToString("\n") { it.visit(padding + 1) })
+					.filterNot { it.isFakeOverride }
+					.joinToString("\n") { it.visit(padding + 1) }
+			)
 			appendLine()
 			repeat(padding) { append("    ") }
 			append("}")
@@ -159,8 +159,9 @@ class ClassCodegen(val context: ClrBackendContext) {
 			appendLine()
 			append(
 				declarations.filterIsInstance<IrFunction>()
-				.filterNot { it.isFakeOverride }
-				.joinToString("\n") { it.visit(padding + 1) })
+					.filterNot { it.isFakeOverride }
+					.joinToString("\n") { it.visit(padding + 1) }
+			)
 			appendLine()
 			repeat(padding) { append("    ") }
 			append("}")
@@ -249,26 +250,24 @@ class ClassCodegen(val context: ClrBackendContext) {
 	}
 
 	fun IrBody.visit(padding: Int): String {
-		return runCatching {
-			statements.joinToString("\n") {
-				buildString {
-					repeat(padding) { append("    ") }
+		return statements.joinToString("\n") {
+			buildString {
+				repeat(padding) { append("    ") }
 
-					append(
-						when (it) {
-							is IrCall -> it.visit(padding)
-							is IrReturn -> it.visit(padding)
-							is IrVariable -> it.visit(padding)
-							is IrDelegatingConstructorCall -> it.visit(padding)
-							is IrConstructorCall -> it.visit(padding)
-							is IrInstanceInitializerCall -> it.visit(padding)
-							else -> "/* Unsupported statement: ${it::class.java.simpleName} */"
-						}
-					)
-					append(";")
-				}
+				append(
+					when (it) {
+						is IrCall -> it.visit(padding)
+						is IrReturn -> it.visit(padding)
+						is IrVariable -> it.visit(padding)
+						is IrDelegatingConstructorCall -> it.visit(padding)
+						is IrConstructorCall -> it.visit(padding)
+						is IrInstanceInitializerCall -> it.visit(padding)
+						else -> "/* Unsupported statement: ${it::class.java.simpleName} */"
+					}
+				)
+				append(";")
 			}
-		}.getOrElse { "" }
+		}
 	}
 
 	fun IrInstanceInitializerCall.visit(padding: Int): String {
@@ -309,43 +308,56 @@ class ClassCodegen(val context: ClrBackendContext) {
 
 	fun IrCall.visit(padding: Int): String {
 		return buildString {
-			val parent = symbol.owner.parent
+			val function = symbol.owner
+			val parent = function.parent
 
 			try {
 				when (parent) {
 					is IrClass -> {
-						val packageFragment = parent.getPackageFragment()
-						val isStatic = symbol.owner.isStatic
-						val isCompanionStatic = (symbol.owner as? Fir2IrLazySimpleFunction)?.fir?.annotations?.any {
+						val isStatic = function.isStatic
+						val isCompanionStatic = (function as? Fir2IrLazySimpleFunction)?.fir?.annotations?.any {
 							it.annotationTypeRef.coneType.classId == classId("kotlin.clr", "ClrStatic")
 						} == true
 
 						when {
 							isStatic -> {
-								append("global::")
-								if (!packageFragment.packageFqName.isRoot) {
-									append(packageFragment.packageFqName.asString())
-									append(".")
-								}
-								append(parent.name.asString())
+								append(typeMapper.mapType(parent.defaultType))
 								append(".")
-								append(symbol.owner.name.asString())
+								append(function.name.asString())
 							}
 
 							isCompanionStatic -> {
-								append("global::")
-								if (!packageFragment.packageFqName.isRoot) {
-									append(packageFragment.packageFqName.asString())
-									append(".")
-								}
 								val outer = parent.parent as? IrClass
 									?: throw IllegalStateException("Expected IrClass but got ${parent::class.java}: ${parent.render()}")
-								append(outer.name.asString())
+								append(typeMapper.mapType(outer.defaultType))
 								append(".")
-								append(symbol.owner.name.asString())
+								append(function.name.asString())
 							}
 
-							else -> TODO()
+							else -> {
+								when {
+									function.isOperator -> {
+										when (function.name.asString()) {
+											"plus" -> {
+												append(
+													arguments
+														.filterNotNull()
+														.joinToString(" + ") { it.visit(padding + 1) }
+												)
+											}
+
+											else -> TODO(function.name.asString())
+										}
+										return@buildString
+									}
+
+									else -> {
+										append(dispatchReceiver!!.visit(padding + 1))
+										append(".")
+										append(function.name.asString())
+									}
+								}
+							}
 						}
 
 						append("(")
@@ -424,6 +436,10 @@ class ClassCodegen(val context: ClrBackendContext) {
 	fun IrSymbol.visit(padding: Int): String {
 		return when (this) {
 			is IrVariableSymbol -> {
+				owner.name.asString()
+			}
+
+			is IrValueSymbol -> {
 				owner.name.asString()
 			}
 

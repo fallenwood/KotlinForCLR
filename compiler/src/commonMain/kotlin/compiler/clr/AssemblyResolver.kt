@@ -3,7 +3,6 @@ package compiler.clr
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
-import javax.management.Attribute
 
 object AssemblyResolver {
 	fun resolve(assembly: String) = resolveAssembly(

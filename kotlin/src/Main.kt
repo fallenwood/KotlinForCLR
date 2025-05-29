@@ -1,14 +1,9 @@
 import kotlin.io.*
 
 fun main() {
-	// Prints a message to request input
-	println("Enter any word: ")
+	println("sum(1, 2) = ${sum(1, 2)}")
+}
 
-	// Reads and stores the user input. For example: Happiness
-	val yourWord = readln()
-
-	// Prints a message with the input
-	print("You entered the word: ")
-	print(yourWord)
-	// You entered the word: Happiness
+fun sum(a: Int, b: Int): Int {
+	return a + b
 }
