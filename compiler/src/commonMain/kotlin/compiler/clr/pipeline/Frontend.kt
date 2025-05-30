@@ -2,17 +2,16 @@ package compiler.clr.pipeline
 
 import compiler.EnvironmentConfigFiles
 import compiler.clr.*
-import compiler.clr.frontend.DllRootsResolver
-import compiler.clr.frontend.ClrPlatforms
-import compiler.clr.frontend.FirClrSessionFactory
-import compiler.clr.frontend.KotlinCoreEnvironment
+import compiler.clr.frontend.*
 import compiler.clr.frontend.KotlinCoreEnvironment.Companion.configureProjectEnvironment
-import compiler.clr.frontend.VfsBasedProjectEnvironment
 import org.jetbrains.kotlin.cli.common.*
 import org.jetbrains.kotlin.cli.common.config.KotlinSourceRoot
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
-import org.jetbrains.kotlin.cli.jvm.compiler.*
+import org.jetbrains.kotlin.cli.jvm.compiler.JvmPackagePartProvider
+import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCliJavaFileManagerImpl
+import org.jetbrains.kotlin.cli.jvm.compiler.setupHighestLanguageLevel
+import org.jetbrains.kotlin.cli.jvm.compiler.setupIdeaStandaloneExecution
 import org.jetbrains.kotlin.cli.jvm.index.JavaRoot
 import org.jetbrains.kotlin.cli.jvm.index.JvmDependenciesDynamicCompoundIndex
 import org.jetbrains.kotlin.cli.jvm.index.JvmDependenciesIndexImpl
@@ -31,6 +30,7 @@ import org.jetbrains.kotlin.com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.fir.BinaryModuleData
 import org.jetbrains.kotlin.fir.DependencyListForCliModule
+import org.jetbrains.kotlin.fir.declarations.builder.buildImport
 import org.jetbrains.kotlin.fir.pipeline.FirResult
 import org.jetbrains.kotlin.fir.pipeline.buildFirViaLightTree
 import org.jetbrains.kotlin.fir.pipeline.resolveAndCheckFir
@@ -39,6 +39,7 @@ import org.jetbrains.kotlin.fir.session.environment.AbstractProjectFileSearchSco
 import org.jetbrains.kotlin.load.kotlin.MetadataFinderFactory
 import org.jetbrains.kotlin.load.kotlin.PackagePartProvider
 import org.jetbrains.kotlin.load.kotlin.VirtualFileFinderFactory
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import java.io.File
 
@@ -83,6 +84,36 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 
 		val outputs = sessionsWithSources.map { (session, sources) ->
 			val rawFirFiles = session.buildFirViaLightTree(sources, diagnosticsCollector)
+			rawFirFiles.forEach {
+				listOf(
+					"kotlin",
+					"kotlin.annotation",
+					"kotlin.collections",
+					"kotlin.comparisons",
+					"kotlin.io",
+					"kotlin.ranges",
+					"kotlin.sequences",
+					"kotlin.text",
+
+					"kotlin.clr",
+					"System",
+					"System.Collections.Generic",
+					"System.IO",
+					"System.Linq",
+					"System.Net.Http",
+					"System.Threading",
+					"System.Threading.Tasks",
+				).forEach { pack ->
+					if (!it.imports.any { import ->
+						import.importedFqName?.asString() == pack
+					}) {
+						(it.imports as MutableList) += buildImport {
+							importedFqName = FqName(pack)
+							isAllUnder = true
+						}
+					}
+				}
+			}
 			resolveAndCheckFir(session, rawFirFiles, diagnosticsCollector)
 		}
 

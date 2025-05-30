@@ -92,14 +92,40 @@ class ClrSymbolProvider(
 				packageFqName = FqName(node.namespace ?: "")
 			}
 
-			declarations += when (node.attributes.any { it == "kotlin.clr.ClrFileClass" }) {
-				true -> buildFileClass(node).fir
+			declarations += when {
+				node.attributes.any { it == "kotlin.clr.KotlinObject" } -> buildObject(node).fir
+				node.attributes.any { it == "kotlin.clr.KotlinFileClass" } -> buildFileClass(node).fir
 				else -> buildClass(node).fir
 			}
 			name = node.name
 			this.symbol = symbol
 		}
 		clrSymbolNamesProvider.registerPackageName(symbol.fir.packageFqName)
+	}
+
+	private fun buildObject(node: NodeType) = FirRegularClassSymbol(
+		classId = classId(node.namespace ?: "", node.name)
+	).also { symbol ->
+		buildRegularClass {
+			moduleData = firModuleData
+			origin = FirDeclarationOrigin.Library
+			typeParameters
+			status = FirResolvedDeclarationStatusImpl(
+				Visibilities.Public,
+				Modality.FINAL,
+				EffectiveVisibility.Public
+			)
+			classKind = ClassKind.OBJECT
+
+			declarations += node.methods.map { buildTopLevelFunction(symbol.classId, it).fir }
+
+			name = symbol.name
+			scopeProvider = session.kotlinScopeProvider
+			this.symbol = symbol
+		}
+		clrSymbolNamesProvider.registerClassName(symbol.packageFqName(), symbol.name)
+		classPackages.getOrPut(node.namespace ?: "") { mutableListOf() } += symbol.classId
+		classSymbols[symbol.classId] = symbol
 	}
 
 	private fun buildFileClass(node: NodeType) = FirRegularClassSymbol(
@@ -166,7 +192,12 @@ class ClrSymbolProvider(
 			moduleData = firModuleData
 			origin = FirDeclarationOrigin.Library
 			typeParameters
-			status = FirResolvedDeclarationStatusImpl(
+			status = FirDeclarationStatusImpl(
+				Visibilities.Public,
+				Modality.FINAL
+			).apply {
+				isCompanion = true
+			}.resolved(
 				Visibilities.Public,
 				Modality.FINAL,
 				EffectiveVisibility.Public
@@ -414,8 +445,7 @@ class ClrSymbolProvider(
 		return classPackages.containsKey(packageName) || functionPackages.containsKey(packageName)
 	}
 
-	override
-	val symbolNamesProvider: FirSymbolNamesProvider = clrSymbolNamesProvider
+	override val symbolNamesProvider: FirSymbolNamesProvider = clrSymbolNamesProvider
 }
 
 class ClrAssemblyBasedSymbolProvider(

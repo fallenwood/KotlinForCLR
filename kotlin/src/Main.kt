@@ -1,9 +1,7 @@
-import kotlin.io.*
-
 fun main() {
-	println("sum(1, 2) = ${sum(1, 2)}")
+	printSum(1, 2)
 }
 
-fun sum(a: Int, b: Int): Int {
-	return a + b
+fun printSum(a: Int, b: Int): Unit {
+	println("sum of $a and $b is ${a + b}")
 }

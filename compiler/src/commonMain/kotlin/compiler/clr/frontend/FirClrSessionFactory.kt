@@ -119,11 +119,8 @@ object FirClrSessionFactory :
 			importTracker,
 			init,
 			createProviders = { session, kotlinScopeProvider, symbolProvider, generatedSymbolsProvider, dependencies ->
-				// 使用共享实例而不是创建新实例
-				val clrSymbolProvider = getOrCreateClrSymbolProvider(session, assemblies)
-
 				listOfNotNull(
-					clrSymbolProvider,
+					ClrSymbolProvider(session, assemblies, session.moduleData),
 					symbolProvider,
 					generatedSymbolsProvider,
 					initializeForStdlibIfNeeded(session, kotlinScopeProvider, dependencies, assemblies),
@@ -165,18 +162,6 @@ object FirClrSessionFactory :
 	}
 
 	// ==================================== Common parts ====================================
-
-	private val symbolProviderCache = mutableMapOf<FirSession, ClrSymbolProvider>()
-
-	private fun getOrCreateClrSymbolProvider(
-		session: FirSession,
-		assemblies: Map<String, NodeAssembly>,
-		rewriteModuleData: FirModuleData? = null,
-	): ClrSymbolProvider {
-		return symbolProviderCache.getOrPut(session) {
-			ClrSymbolProvider(session, assemblies, rewriteModuleData)
-		}
-	}
 
 	private fun FirSession.registerClrComponents(assemblies: Map<String, NodeAssembly>) {
 		register(FirClrAssemblyProvider::class as KClass<out FirSessionComponent>, FirClrAssemblyProvider(assemblies))

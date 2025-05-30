@@ -2,7 +2,7 @@
 
 namespace kotlin.io;
 
-[ClrFileClass]
+[KotlinFileClass]
 public sealed class ConsoleKt {
 	public static void print(object? message) => Console.Write(message);
 	public static void print(int message) => Console.Write(message);

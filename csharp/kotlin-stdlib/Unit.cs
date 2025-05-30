@@ -1,5 +1,8 @@
-﻿namespace kotlin;
+﻿using kotlin.clr;
 
+namespace kotlin;
+
+[KotlinObject]
 public sealed class Unit {
 	public static readonly Unit INSTANCE = new();
 

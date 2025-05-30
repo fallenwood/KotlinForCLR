@@ -4,20 +4,23 @@ MODULE_FRAGMENT name:<main>
       $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.MainKt
       FUN name:main visibility:public modality:FINAL <> () returnType:kotlin.Unit
         BLOCK_BODY
-          CALL 'public final fun println (message: kotlin.Any?): kotlin.Unit declared in kotlin.io.ConsoleKt' type=kotlin.Unit origin=null
-            message: STRING_CONCATENATION type=kotlin.String
-              CONST String type=kotlin.String value="sum(1, 2) = "
-              CALL 'public final fun sum (a: kotlin.Int, b: kotlin.Int): kotlin.Int declared in <root>.MainKt' type=kotlin.Int origin=null
-                a: CONST Int type=kotlin.Int value=1
-                b: CONST Int type=kotlin.Int value=2
-      FUN name:sum visibility:public modality:FINAL <> (a:kotlin.Int, b:kotlin.Int) returnType:kotlin.Int
+          CALL 'public final fun printSum (a: kotlin.Int, b: kotlin.Int): kotlin.Unit declared in <root>.MainKt' type=kotlin.Unit origin=null
+            a: CONST Int type=kotlin.Int value=1
+            b: CONST Int type=kotlin.Int value=2
+      FUN name:printSum visibility:public modality:FINAL <> (a:kotlin.Int, b:kotlin.Int) returnType:kotlin.Unit
         VALUE_PARAMETER name:a index:0 type:kotlin.Int
         VALUE_PARAMETER name:b index:1 type:kotlin.Int
         BLOCK_BODY
-          RETURN type=kotlin.Nothing from='public final fun sum (a: kotlin.Int, b: kotlin.Int): kotlin.Int declared in <root>.MainKt'
-            CALL 'public final fun plus (other: kotlin.Int): kotlin.Int [operator] declared in kotlin.Int' type=kotlin.Int origin=PLUS
-              $this: GET_VAR 'a: kotlin.Int declared in <root>.MainKt.sum' type=kotlin.Int origin=null
-              other: GET_VAR 'b: kotlin.Int declared in <root>.MainKt.sum' type=kotlin.Int origin=null
+          CALL 'public final fun println (message: kotlin.Any?): kotlin.Unit declared in kotlin.io.ConsoleKt' type=kotlin.Unit origin=null
+            message: STRING_CONCATENATION type=kotlin.String
+              CONST String type=kotlin.String value="sum of "
+              GET_VAR 'a: kotlin.Int declared in <root>.MainKt.printSum' type=kotlin.Int origin=null
+              CONST String type=kotlin.String value=" and "
+              GET_VAR 'b: kotlin.Int declared in <root>.MainKt.printSum' type=kotlin.Int origin=null
+              CONST String type=kotlin.String value=" is "
+              CALL 'public final fun plus (other: kotlin.Int): kotlin.Int [operator] declared in kotlin.Int' type=kotlin.Int origin=PLUS
+                $this: GET_VAR 'a: kotlin.Int declared in <root>.MainKt.printSum' type=kotlin.Int origin=null
+                other: GET_VAR 'b: kotlin.Int declared in <root>.MainKt.printSum' type=kotlin.Int origin=null
       FUN GENERATED_EXTENDED_MAIN name:Main visibility:public modality:OPEN <> (args:kotlin.Array<kotlin.String>) returnType:kotlin.Unit
         VALUE_PARAMETER name:args index:0 type:kotlin.Array<kotlin.String>
         BLOCK_BODY
