@@ -60,4 +60,15 @@ MODULE_FRAGMENT name:<main>
         overridden:
           public open fun toString (): kotlin.String declared in kotlin.Any
         $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    FUN name:main visibility:public modality:FINAL <> () returnType:kotlin.Unit
+      BLOCK_BODY
+        VAR name:rectangle type:<root>.Rectangle [val]
+          CONSTRUCTOR_CALL 'public constructor <init> (height: kotlin.Double, length: kotlin.Double) [primary] declared in <root>.Rectangle' type=<root>.Rectangle origin=null
+            height: CONST Double type=kotlin.Double value=5.0
+            length: CONST Double type=kotlin.Double value=2.0
+        CALL 'public final fun println (message: kotlin.Any?): kotlin.Unit declared in kotlin.io.ConsoleKt' type=kotlin.Unit origin=null
+          message: STRING_CONCATENATION type=kotlin.String
+            CONST String type=kotlin.String value="The perimeter is "
+            CALL 'public final fun <get-perimeter> (): kotlin.Double declared in <root>.Rectangle' type=kotlin.Double origin=GET_PROPERTY
+              $this: GET_VAR 'val rectangle: <root>.Rectangle [val] declared in <root>.main' type=<root>.Rectangle origin=null
 

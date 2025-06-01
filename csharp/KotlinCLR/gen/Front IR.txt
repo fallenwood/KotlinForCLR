@@ -14,4 +14,8 @@ FILE: Main.kt
             public get(): R|kotlin/Double|
 
     }
+    public final fun main(): R|kotlin/Unit| {
+        lval rectangle: R|Rectangle| = R|/Rectangle.Rectangle|(Double(5.0), Double(2.0))
+        R|kotlin/io/println|(<strcat>(String(The perimeter is ), R|<local>/rectangle|.R|/Rectangle.perimeter|))
+    }
 

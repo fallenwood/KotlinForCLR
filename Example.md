@@ -131,6 +131,10 @@ public sealed class MainKt
 class Rectangle(val height: Double, val length: Double) {
     val perimeter = (height + length) * 2
 }
+fun main() {
+    val rectangle = Rectangle(5.0, 2.0)
+    println("The perimeter is ${rectangle.perimeter}")
+}
 ```
 
 
@@ -146,5 +150,17 @@ public sealed class Rectangle
     public global::System.Double height { get; }
     public global::System.Double length { get; }
     public global::System.Double perimeter { get; }
+}
+public sealed class MainKt
+{
+    public static void main()
+    {
+        global::Rectangle rectangle = new global::Rectangle(5.0, 2.0);
+        global::kotlin.io.ConsoleKt.println("The perimeter is " + rectangle.perimeter);
+    }
+    public static void Main(global::System.String[] args)
+    {
+        global::MainKt.main();
+    }
 }
 ```

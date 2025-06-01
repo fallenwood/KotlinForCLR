@@ -60,4 +60,21 @@ MODULE_FRAGMENT name:<main>
         overridden:
           public open fun toString (): kotlin.String declared in kotlin.Any
         $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS FILE_CLASS CLASS name:MainKt modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.MainKt
+      FUN name:main visibility:public modality:FINAL <> () returnType:kotlin.Unit
+        BLOCK_BODY
+          VAR name:rectangle type:<root>.Rectangle [val]
+            CONSTRUCTOR_CALL 'public constructor <init> (height: kotlin.Double, length: kotlin.Double) [primary] declared in <root>.Rectangle' type=<root>.Rectangle origin=null
+              height: CONST Double type=kotlin.Double value=5.0
+              length: CONST Double type=kotlin.Double value=2.0
+          CALL 'public final fun println (message: kotlin.Any?): kotlin.Unit declared in kotlin.io.ConsoleKt' type=kotlin.Unit origin=null
+            message: STRING_CONCATENATION type=kotlin.String
+              CONST String type=kotlin.String value="The perimeter is "
+              CALL 'public final fun <get-perimeter> (): kotlin.Double declared in <root>.Rectangle' type=kotlin.Double origin=GET_PROPERTY
+                $this: GET_VAR 'val rectangle: <root>.Rectangle [val] declared in <root>.MainKt.main' type=<root>.Rectangle origin=null
+      FUN GENERATED_EXTENDED_MAIN name:Main visibility:public modality:OPEN <> (args:kotlin.Array<kotlin.String>) returnType:kotlin.Unit
+        VALUE_PARAMETER name:args index:0 type:kotlin.Array<kotlin.String>
+        BLOCK_BODY
+          CALL 'public final fun main (): kotlin.Unit declared in <root>.MainKt' type=kotlin.Unit origin=null
 

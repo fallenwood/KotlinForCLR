@@ -614,7 +614,9 @@ class ClassCodegen(val context: ClrBackendContext) {
 	fun IrConst.visit(padding: Int): String {
 		return when (value) {
 			is String -> "\"$value\""
-			is Int -> value.toString()
+			is Number -> value.toString()
+			is Boolean -> value.toString()
+			is Char -> "'$value'"
 			null -> "null"
 			else -> "/* Unsupported constant type: ${(value!!)::class.java.simpleName} */"
 		}
