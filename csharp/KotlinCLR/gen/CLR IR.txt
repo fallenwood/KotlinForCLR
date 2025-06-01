@@ -1,5 +1,5 @@
 MODULE_FRAGMENT name:<main>
-  FILE fqName:<root> fileName:C:/Users/Yurn/IdeaProjects/KotlinCLRBackendCompiler/kotlin/src/Main.kt
+  FILE fqName:<root> fileName:C:/Users/Yurin/IdeaProjects/KotlinCLRBackendCompiler/kotlin/src/Main.kt
     CLASS FILE_CLASS CLASS name:MainKt modality:FINAL visibility:public superTypes:[kotlin.Any]
       $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.MainKt
       FUN name:main visibility:public modality:FINAL <> () returnType:kotlin.Unit

@@ -9,7 +9,7 @@ fun main() {
 		freeArgs += "../kotlin/src"
 		kotlinHome = "home/clr"
 		destination = out.absolutePath
-		sdkHome = "C:\\Program Files\\dotnet\\packs\\Microsoft.NETCore.App.Ref\\9.0.0\\ref\\net9.0"
+		sdkHome = "C:\\Program Files\\dotnet\\packs\\Microsoft.NETCore.App.Ref\\9.0.5\\ref\\net9.0"
 	}
 	val compiler = CLRCompiler()
 	val exitCode = compiler.exec(System.err, arguments)

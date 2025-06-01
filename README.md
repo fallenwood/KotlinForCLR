@@ -22,8 +22,10 @@
 ## 使用
 1. 使用 Intellij IDEA 打开本项目, 使用 Rider / Visual Studio 打开 `csharp` 子目录
 2. 使用 Rider / Visual Studio 构建 `AssemblyResolver` 项目
-3. 使用 Intellij IDEA 运行 Gradle 任务 `:compiler:jvmRun -DmainClass=MainCLRKt` 即可将 `kotlin` 目录内的源码编译至 `csharp/KotlinCLR/gen` 目录下
-4. 使用 Rider / Visual Studio 运行 `KotlinCLR` 项目 
+3. 使用 Rider / Visual Studio 构建 `kotlin-stdlib` 项目, 并将生成的 `kotlin-stdlib.dll` 放入 `compiler/home/clr/lib` 目录下
+4. 打开 `compiler/src/commonMain/kotlin/MainCLR.kt` 文件, 修改 sdkHome 为符合你本地环境的 .NET SDK 路径
+5. 使用 Intellij IDEA 运行 Gradle 任务 `:compiler:jvmRun -DmainClass=MainCLRKt` 即可将 `kotlin` 目录内的源码编译至 `csharp/KotlinCLR/gen` 目录下
+6. 使用 Rider / Visual Studio 运行 `KotlinCLR` 项目 
 
 ## [样例](./Example.md)
 
