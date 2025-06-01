@@ -1,7 +1,12 @@
-fun main() {
-	printSum(1, 2)
+val PI = 3.14
+var x = 0
+
+fun incrementX() {
+	x += 1
 }
 
-fun printSum(a: Int, b: Int): Unit {
-	println("sum of $a and $b is ${a + b}")
+fun main() {
+	println("x = $x, PI = $PI")
+	incrementX()
+	println("x = $x, PI = $PI")
 }

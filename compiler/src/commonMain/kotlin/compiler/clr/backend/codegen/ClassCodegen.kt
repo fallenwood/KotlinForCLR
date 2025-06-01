@@ -74,9 +74,8 @@ class ClassCodegen(val context: ClrBackendContext) {
 			append("{")
 			appendLine()
 			append(
-				declarations.filterIsInstance<IrFunction>()
-					.filterNot { it.isFakeOverride }
-					.joinToString("\n") { it.visit(padding + 1) }
+				declarations.mapNotNull { it.visit(padding + 1) }
+					.joinToString("\n") { it }
 			)
 			appendLine()
 			repeat(padding) { append("    ") }
@@ -93,9 +92,8 @@ class ClassCodegen(val context: ClrBackendContext) {
 			append("{")
 			appendLine()
 			append(
-				declarations.filterIsInstance<IrFunction>()
-					.filterNot { it.isFakeOverride }
-					.joinToString("\n") { it.visit(padding + 1) }
+				declarations.mapNotNull { it.visit(padding + 1) }
+					.joinToString("\n") { it }
 			)
 			appendLine()
 			repeat(padding) { append("    ") }
@@ -112,9 +110,8 @@ class ClassCodegen(val context: ClrBackendContext) {
 			append("{")
 			appendLine()
 			append(
-				declarations.filterIsInstance<IrFunction>()
-					.filterNot { it.isFakeOverride }
-					.joinToString("\n") { it.visit(padding + 1) }
+				declarations.mapNotNull { it.visit(padding + 1) }
+					.joinToString("\n") { it }
 			)
 			appendLine()
 			repeat(padding) { append("    ") }
@@ -132,9 +129,8 @@ class ClassCodegen(val context: ClrBackendContext) {
 			append("{")
 			appendLine()
 			append(
-				declarations.filterIsInstance<IrFunction>()
-					.filterNot { it.isFakeOverride }
-					.joinToString("\n") { it.visit(padding + 1) }
+				declarations.mapNotNull { it.visit(padding + 1) }
+					.joinToString("\n") { it }
 			)
 			appendLine()
 			repeat(padding) { append("    ") }
@@ -158,13 +154,25 @@ class ClassCodegen(val context: ClrBackendContext) {
 			append("();")
 			appendLine()
 			append(
-				declarations.filterIsInstance<IrFunction>()
-					.filterNot { it.isFakeOverride }
-					.joinToString("\n") { it.visit(padding + 1) }
+				declarations.mapNotNull { it.visit(padding + 1) }
+					.joinToString("\n") { it }
 			)
 			appendLine()
 			repeat(padding) { append("    ") }
 			append("}")
+		}
+	}
+
+	fun IrDeclaration.visit(padding: Int): String? {
+		if (isFakeOverride) return null
+		return when (this) {
+			is IrClass -> visit(padding)
+			is IrFunction -> visit(padding)
+			is IrProperty -> visit(padding)
+			else -> buildString {
+				repeat(padding + 1) { append("    ") }
+				append("/* Unsupported declaration: ${this::class.java.simpleName} */")
+			}
 		}
 	}
 
@@ -249,6 +257,49 @@ class ClassCodegen(val context: ClrBackendContext) {
 		append("}")
 	}
 
+	fun IrProperty.visit(padding: Int) = buildString {
+		repeat(padding) { append("    ") }
+
+		when (visibility.delegate) {
+			is Visibilities.Private -> append("private ")
+			is Visibilities.Protected -> append("protected ")
+			is Visibilities.Internal -> append("internal ")
+			is Visibilities.Public -> append("public ")
+		}
+
+		val isStatic = when {
+			parent is IrFile -> true  // 顶级函数总是static
+			(backingField?.isStatic ?: getter?.isStatic ?: setter?.isStatic) == true -> true
+			else -> false             // 默认为普通实例方法
+		}
+
+		if (isStatic) {
+			append("static ")
+		}
+
+		when (modality) {
+			FINAL -> {}
+			SEALED -> TODO()
+			OPEN -> append("virtual ")
+			ABSTRACT -> append("abstract ")
+		}
+
+		val type = getter?.returnType ?: setter?.returnType ?: error("Property must have either getter or setter: $this")
+		append(typeMapper.mapType(type))
+		append(" ")
+
+		append(name.asString())
+
+		append(" { ")
+		if (getter != null) {
+			append("get; ")
+		}
+		if (setter != null) {
+			append("set; ")
+		}
+		append(" } ")
+	}
+
 	fun IrBody.visit(padding: Int): String {
 		return statements.joinToString("\n") {
 			buildString {
@@ -256,23 +307,13 @@ class ClassCodegen(val context: ClrBackendContext) {
 
 				append(
 					when (it) {
-						is IrCall -> it.visit(padding)
-						is IrReturn -> it.visit(padding)
+						is IrExpression -> it.visit(padding)
 						is IrVariable -> it.visit(padding)
-						is IrDelegatingConstructorCall -> it.visit(padding)
-						is IrConstructorCall -> it.visit(padding)
-						is IrInstanceInitializerCall -> it.visit(padding)
 						else -> "/* Unsupported statement: ${it::class.java.simpleName} */"
 					}
 				)
 				append(";")
 			}
-		}
-	}
-
-	fun IrInstanceInitializerCall.visit(padding: Int): String {
-		return buildString {
-			append("/* 实例初始化 */")
 		}
 	}
 
@@ -323,7 +364,23 @@ class ClassCodegen(val context: ClrBackendContext) {
 							isStatic -> {
 								append(typeMapper.mapType(parent.defaultType))
 								append(".")
-								append(function.name.asString())
+								if (function.name.isSpecial) {
+									val name = function.name.asString()
+									when {
+										name.startsWith("<set-") -> {
+											append(name.substring("<set-".length, name.length - 1))
+											append(" = ")
+											append(valueArguments[0]!!.visit(padding + 1))
+										}
+										name.startsWith("<get-") -> {
+											append(name.substring("<get-".length, name.length - 1))
+										}
+										else -> TODO(name)
+									}
+									return@buildString
+								} else {
+									append(function.name.asString())
+								}
 							}
 
 							isCompanionStatic -> {
@@ -398,6 +455,14 @@ class ClassCodegen(val context: ClrBackendContext) {
 		}
 	}
 
+	fun IrSetValue.visit(padding: Int): String {
+		return buildString {
+			append(symbol.visit(padding + 1))
+			append(" = ")
+			append(value.visit(padding + 1))
+		}
+	}
+
 	fun IrExpression.visit(padding: Int): String {
 		return when (this) {
 			is IrConst -> visit(padding)
@@ -408,6 +473,8 @@ class ClassCodegen(val context: ClrBackendContext) {
 			is IrConstructorCall -> visit(padding)
 			is IrInstanceInitializerCall -> visit(padding)
 			is IrGetObjectValue -> visit(padding)
+			is IrReturn -> visit(padding)
+			is IrSetValue -> visit(padding)
 			else -> "/* Unsupported expression: ${this::class.java.simpleName} */"
 		}
 	}
