@@ -1,48 +1,63 @@
 MODULE_FRAGMENT name:<main>
   FILE fqName:<root> fileName:C:/Users/Yurin/IdeaProjects/KotlinCLRBackendCompiler/kotlin/src/Main.kt
-    PROPERTY name:PI visibility:public modality:FINAL [val]
-      FIELD PROPERTY_BACKING_FIELD name:PI type:kotlin.Double visibility:private [final,static]
-        EXPRESSION_BODY
-          CONST Double type=kotlin.Double value=3.14
-      FUN DEFAULT_PROPERTY_ACCESSOR name:<get-PI> visibility:public modality:FINAL <> () returnType:kotlin.Double
-        correspondingProperty: PROPERTY name:PI visibility:public modality:FINAL [val]
+    CLASS CLASS name:Rectangle modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Rectangle
+      CONSTRUCTOR visibility:public <> (height:kotlin.Double, length:kotlin.Double) returnType:<root>.Rectangle [primary]
+        VALUE_PARAMETER name:height index:0 type:kotlin.Double
+        VALUE_PARAMETER name:length index:1 type:kotlin.Double
         BLOCK_BODY
-          RETURN type=kotlin.Nothing from='public final fun <get-PI> (): kotlin.Double declared in <root>'
-            GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:PI type:kotlin.Double visibility:private [final,static]' type=kotlin.Double origin=null
-    PROPERTY name:x visibility:public modality:FINAL [var]
-      FIELD PROPERTY_BACKING_FIELD name:x type:kotlin.Int visibility:private [static]
-        EXPRESSION_BODY
-          CONST Int type=kotlin.Int value=0
-      FUN DEFAULT_PROPERTY_ACCESSOR name:<get-x> visibility:public modality:FINAL <> () returnType:kotlin.Int
-        correspondingProperty: PROPERTY name:x visibility:public modality:FINAL [var]
-        BLOCK_BODY
-          RETURN type=kotlin.Nothing from='public final fun <get-x> (): kotlin.Int declared in <root>'
-            GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:x type:kotlin.Int visibility:private [static]' type=kotlin.Int origin=null
-      FUN DEFAULT_PROPERTY_ACCESSOR name:<set-x> visibility:public modality:FINAL <> (<set-?>:kotlin.Int) returnType:kotlin.Unit
-        correspondingProperty: PROPERTY name:x visibility:public modality:FINAL [var]
-        VALUE_PARAMETER name:<set-?> index:0 type:kotlin.Int
-        BLOCK_BODY
-          SET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:x type:kotlin.Int visibility:private [static]' type=kotlin.Unit origin=null
-            value: GET_VAR '<set-?>: kotlin.Int declared in <root>.<set-x>' type=kotlin.Int origin=null
-    FUN name:incrementX visibility:public modality:FINAL <> () returnType:kotlin.Unit
-      BLOCK_BODY
-        CALL 'public final fun <set-x> (<set-?>: kotlin.Int): kotlin.Unit declared in <root>' type=kotlin.Unit origin=PLUSEQ
-          <set-?>: CALL 'public final fun plus (other: kotlin.Int): kotlin.Int [operator] declared in kotlin.Int' type=kotlin.Int origin=PLUSEQ
-            $this: CALL 'public final fun <get-x> (): kotlin.Int declared in <root>' type=kotlin.Int origin=PLUSEQ
-            other: CONST Int type=kotlin.Int value=1
-    FUN name:main visibility:public modality:FINAL <> () returnType:kotlin.Unit
-      BLOCK_BODY
-        CALL 'public final fun println (message: kotlin.Any?): kotlin.Unit declared in kotlin.io.ConsoleKt' type=kotlin.Unit origin=null
-          message: STRING_CONCATENATION type=kotlin.String
-            CONST String type=kotlin.String value="x = "
-            CALL 'public final fun <get-x> (): kotlin.Int declared in <root>' type=kotlin.Int origin=GET_PROPERTY
-            CONST String type=kotlin.String value=", PI = "
-            CALL 'public final fun <get-PI> (): kotlin.Double declared in <root>' type=kotlin.Double origin=GET_PROPERTY
-        CALL 'public final fun incrementX (): kotlin.Unit declared in <root>' type=kotlin.Unit origin=null
-        CALL 'public final fun println (message: kotlin.Any?): kotlin.Unit declared in kotlin.io.ConsoleKt' type=kotlin.Unit origin=null
-          message: STRING_CONCATENATION type=kotlin.String
-            CONST String type=kotlin.String value="x = "
-            CALL 'public final fun <get-x> (): kotlin.Int declared in <root>' type=kotlin.Int origin=GET_PROPERTY
-            CONST String type=kotlin.String value=", PI = "
-            CALL 'public final fun <get-PI> (): kotlin.Double declared in <root>' type=kotlin.Double origin=GET_PROPERTY
+          DELEGATING_CONSTRUCTOR_CALL 'public constructor <init> () [primary] declared in kotlin.Any'
+          INSTANCE_INITIALIZER_CALL classDescriptor='CLASS CLASS name:Rectangle modality:FINAL visibility:public superTypes:[kotlin.Any]' type=kotlin.Unit
+      PROPERTY name:height visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:height type:kotlin.Double visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'height: kotlin.Double declared in <root>.Rectangle.<init>' type=kotlin.Double origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-height> visibility:public modality:FINAL <> ($this:<root>.Rectangle) returnType:kotlin.Double
+          correspondingProperty: PROPERTY name:height visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Rectangle
+          BLOCK_BODY
+            RETURN type=kotlin.Nothing from='public final fun <get-height> (): kotlin.Double declared in <root>.Rectangle'
+              GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:height type:kotlin.Double visibility:private [final]' type=kotlin.Double origin=null
+                receiver: GET_VAR '<this>: <root>.Rectangle declared in <root>.Rectangle.<get-height>' type=<root>.Rectangle origin=null
+      PROPERTY name:length visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:length type:kotlin.Double visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'length: kotlin.Double declared in <root>.Rectangle.<init>' type=kotlin.Double origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-length> visibility:public modality:FINAL <> ($this:<root>.Rectangle) returnType:kotlin.Double
+          correspondingProperty: PROPERTY name:length visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Rectangle
+          BLOCK_BODY
+            RETURN type=kotlin.Nothing from='public final fun <get-length> (): kotlin.Double declared in <root>.Rectangle'
+              GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:length type:kotlin.Double visibility:private [final]' type=kotlin.Double origin=null
+                receiver: GET_VAR '<this>: <root>.Rectangle declared in <root>.Rectangle.<get-length>' type=<root>.Rectangle origin=null
+      PROPERTY name:perimeter visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:perimeter type:kotlin.Double visibility:private [final]
+          EXPRESSION_BODY
+            CALL 'public final fun times (other: kotlin.Int): kotlin.Double [operator] declared in kotlin.Double' type=kotlin.Double origin=MUL
+              $this: CALL 'public final fun plus (other: kotlin.Double): kotlin.Double [operator] declared in kotlin.Double' type=kotlin.Double origin=PLUS
+                $this: CALL 'public final fun <get-height> (): kotlin.Double declared in <root>.Rectangle' type=kotlin.Double origin=GET_PROPERTY
+                  $this: GET_VAR '<this>: <root>.Rectangle declared in <root>.Rectangle' type=<root>.Rectangle origin=null
+                other: CALL 'public final fun <get-length> (): kotlin.Double declared in <root>.Rectangle' type=kotlin.Double origin=GET_PROPERTY
+                  $this: GET_VAR '<this>: <root>.Rectangle declared in <root>.Rectangle' type=<root>.Rectangle origin=null
+              other: CONST Int type=kotlin.Int value=2
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-perimeter> visibility:public modality:FINAL <> ($this:<root>.Rectangle) returnType:kotlin.Double
+          correspondingProperty: PROPERTY name:perimeter visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Rectangle
+          BLOCK_BODY
+            RETURN type=kotlin.Nothing from='public final fun <get-perimeter> (): kotlin.Double declared in <root>.Rectangle'
+              GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:perimeter type:kotlin.Double visibility:private [final]' type=kotlin.Double origin=null
+                receiver: GET_VAR '<this>: <root>.Rectangle declared in <root>.Rectangle.<get-perimeter>' type=<root>.Rectangle origin=null
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
 

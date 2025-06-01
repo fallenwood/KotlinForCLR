@@ -17,7 +17,6 @@ import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.javac.resolve.classId
-import org.jetbrains.kotlin.name.SpecialNames
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)
 class ClassCodegen(val context: ClrBackendContext) {
@@ -74,8 +73,9 @@ class ClassCodegen(val context: ClrBackendContext) {
 			append("{")
 			appendLine()
 			append(
-				declarations.mapNotNull { it.visit(padding + 1) }
-					.joinToString("\n") { it }
+				declarations
+					.mapNotNull { it.visit(padding + 1) }
+					.joinToString("\n")
 			)
 			appendLine()
 			repeat(padding) { append("    ") }
@@ -92,8 +92,9 @@ class ClassCodegen(val context: ClrBackendContext) {
 			append("{")
 			appendLine()
 			append(
-				declarations.mapNotNull { it.visit(padding + 1) }
-					.joinToString("\n") { it }
+				declarations
+					.mapNotNull { it.visit(padding + 1) }
+					.joinToString("\n")
 			)
 			appendLine()
 			repeat(padding) { append("    ") }
@@ -110,8 +111,9 @@ class ClassCodegen(val context: ClrBackendContext) {
 			append("{")
 			appendLine()
 			append(
-				declarations.mapNotNull { it.visit(padding + 1) }
-					.joinToString("\n") { it }
+				declarations
+					.mapNotNull { it.visit(padding + 1) }
+					.joinToString("\n")
 			)
 			appendLine()
 			repeat(padding) { append("    ") }
@@ -129,8 +131,9 @@ class ClassCodegen(val context: ClrBackendContext) {
 			append("{")
 			appendLine()
 			append(
-				declarations.mapNotNull { it.visit(padding + 1) }
-					.joinToString("\n") { it }
+				declarations
+					.mapNotNull { it.visit(padding + 1) }
+					.joinToString("\n")
 			)
 			appendLine()
 			repeat(padding) { append("    ") }
@@ -154,8 +157,9 @@ class ClassCodegen(val context: ClrBackendContext) {
 			append("();")
 			appendLine()
 			append(
-				declarations.mapNotNull { it.visit(padding + 1) }
-					.joinToString("\n") { it }
+				declarations
+					.mapNotNull { it.visit(padding + 1) }
+					.joinToString("\n")
 			)
 			appendLine()
 			repeat(padding) { append("    ") }
@@ -176,27 +180,80 @@ class ClassCodegen(val context: ClrBackendContext) {
 		}
 	}
 
-	fun IrFunction.visit(padding: Int) = buildString {
+	fun IrFunction.visit(padding: Int) = when (this) {
+		is IrConstructor -> visit(padding)
+		else -> buildString {
+			// 确定是否为静态方法（顶级函数为static，类方法根据标记决定）
+			val isStatic = when {
+				parent is IrFile -> true  // 顶级函数总是static
+				isStatic -> true     // 明确标记为static的方法
+				else -> false             // 默认为普通实例方法
+			}
+
+			val returnType = typeMapper.mapReturnType(returnType)
+
+			// 方法参数
+			val parameters = valueParameters.map {
+				typeMapper.mapType(it.type) to it.name.asString()
+			}
+
+			// 开始生成方法声明
+			repeat(padding) { append("    ") }
+
+			when (visibility.delegate) {
+				is Visibilities.Private -> append("private ")
+				is Visibilities.Protected -> append("protected ")
+				is Visibilities.Internal -> append("internal ")
+				is Visibilities.Public -> append("public ")
+			}
+
+			// 静态构造函数或标记为静态的方法
+			if (isStatic) {
+				append("static ")
+			}
+			append("$returnType ")
+
+			append("${name.asString()}(")
+			append(parameters.joinToString(", ") { "${it.first} ${it.second}" })
+			append(")")
+			appendLine()
+			repeat(padding) { append("    ") }
+			append("{")
+
+			// 函数体
+			if (body != null) {
+				body?.visit(padding + 1)?.let {
+					appendLine()
+					append(it)
+					appendLine()
+					repeat(padding) { append("    ") }
+				}
+			} else {
+				appendLine()
+				repeat(padding + 1) { append("    ") }
+
+				// 为不同返回类型生成默认返回值
+				when {
+					returnType == "void" -> {} // void方法不需要返回值
+					returnType == "string" -> append("return \"\";")
+					returnType == "bool" -> append("return false;")
+					returnType.endsWith("[]") -> append("return new $returnType {};")
+					returnType == "int" || returnType == "long" || returnType == "float" || returnType == "double" ->
+						append("return 0;")
+
+					else -> append("return null;")
+				}
+				appendLine()
+				repeat(padding) { append("    ") }
+			}
+
+			append("}")
+		}
+	}
+
+	fun IrConstructor.visit(padding: Int) = buildString {
 		// 确定是否为构造函数
-		val isConstructor = this@visit is IrConstructor || name == SpecialNames.INIT
 		val className = (parent as? IrClass)?.name?.asString() ?: "Unknown"
-
-		// 确定方法名
-		val methodName = when {
-			isConstructor -> className
-			else -> name.asString()
-		}
-
-		// 确定是否为静态方法（顶级函数为static，类方法根据标记决定）
-		val isStatic = when {
-			parent is IrFile -> true  // 顶级函数总是static
-			isConstructor -> false    // 普通构造函数不是static
-			isStatic -> true     // 明确标记为static的方法
-			else -> false             // 默认为普通实例方法
-		}
-
-		// 根据构造函数与否决定返回类型
-		val returnType = if (!isConstructor) typeMapper.mapReturnType(returnType) else ""
 
 		// 方法参数
 		val parameters = valueParameters.map {
@@ -213,46 +270,38 @@ class ClassCodegen(val context: ClrBackendContext) {
 			is Visibilities.Public -> append("public ")
 		}
 
-		// 静态构造函数或标记为静态的方法
-		if (isStatic) {
-			append("static ")
-		}
-
-		// 仅对非构造函数添加返回类型
-		if (!isConstructor) {
-			append("$returnType ")
-		}
-
-		append("$methodName(")
+		append("$className(")
 		append(parameters.joinToString(", ") { "${it.first} ${it.second}" })
 		append(")")
+		if (body?.statements?.get(0) is IrDelegatingConstructorCall) {
+			// 如果有委托调用，则添加委托调用
+			append(" : ")
+			append((body?.statements?.get(0) as IrDelegatingConstructorCall).visit(padding + 1))
+		}
+
 		appendLine()
 		repeat(padding) { append("    ") }
 		append("{")
 
 		// 函数体
-		appendLine()
-		if (body != null) {
-			append(body?.visit(padding + 1) ?: "")
-		} else {
-			repeat(padding + 1) { append("    ") }
-
-			// 为不同返回类型生成默认返回值
-			when {
-				isConstructor -> {}  // 构造函数不需要返回值
-				returnType == "void" -> {} // void方法不需要返回值
-				returnType == "string" -> append("return \"\";")
-				returnType == "bool" -> append("return false;")
-				returnType.endsWith("[]") -> append("return new $returnType {};")
-				returnType == "int" || returnType == "long" || returnType == "float" || returnType == "double" ->
-					append("return 0;")
-
-				else -> append("return null;")
-			}
+		body?.visit(padding + 1)?.let {
+			appendLine()
+			append(it)
 		}
-		appendLine()
 
-		// 方法结束
+		val parent = parentAsClass
+		parent.declarations
+			.filterIsInstance<IrProperty>()
+			.map { it to it.backingField?.initializer?.expression }
+			.filter { it.second != null }
+			.map { it.first to it.second!! }
+			.forEach { (property, initializer) ->
+				appendLine()
+				repeat(padding + 1) { append("    ") }
+				append("this.${property.name.asString()} = ${initializer.visit(padding)};")
+			}
+
+		appendLine()
 		repeat(padding) { append("    ") }
 		append("}")
 	}
@@ -284,36 +333,62 @@ class ClassCodegen(val context: ClrBackendContext) {
 			ABSTRACT -> append("abstract ")
 		}
 
-		val type = getter?.returnType ?: setter?.returnType ?: error("Property must have either getter or setter: $this")
+		val type = getter?.returnType
+			?: setter?.returnType
+			?: error("Property must have either getter or setter: $this")
 		append(typeMapper.mapType(type))
 		append(" ")
 
 		append(name.asString())
+		append(" ")
 
-		append(" { ")
+		append("{ ")
 		if (getter != null) {
 			append("get; ")
 		}
 		if (setter != null) {
 			append("set; ")
 		}
-		append(" } ")
+		append("}")
 	}
 
-	fun IrBody.visit(padding: Int): String {
-		return statements.joinToString("\n") {
-			buildString {
-				repeat(padding) { append("    ") }
-
-				append(
-					when (it) {
-						is IrExpression -> it.visit(padding)
-						is IrVariable -> it.visit(padding)
-						else -> "/* Unsupported statement: ${it::class.java.simpleName} */"
-					}
-				)
-				append(";")
+	fun IrBody.visit(padding: Int): String? {
+		return statements
+			.filterNot { it is IrDelegatingConstructorCall }
+			.filterNot { it is IrInstanceInitializerCall }
+			.mapNotNull {
+				when (it) {
+					is IrExpression -> it.visit(padding)
+					is IrVariable -> it.visit(padding)
+					else -> "/* Unsupported statement: ${it::class.java.simpleName} */"
+				}
 			}
+			.filter { it.isNotEmpty() }
+			.joinToString("\n") {
+				buildString {
+					repeat(padding) { append("    ") }
+					append(it)
+					append(";")
+				}
+			}
+			.let {
+				when (it.isEmpty()) {
+					true -> null
+					else -> it
+				}
+			}
+	}
+
+	fun IrDelegatingConstructorCall.visit(padding: Int): String {
+		return buildString {
+			append("base(")
+			append(
+				valueArguments
+					.filterNotNull()
+					.mapNotNull { it.visit(padding) }
+					.joinToString(", ")
+			)
+			append(")")
 		}
 	}
 
@@ -321,12 +396,6 @@ class ClassCodegen(val context: ClrBackendContext) {
 		return buildString {
 			append(typeMapper.mapType(symbol.owner.defaultType))
 			append(".INSTANCE")
-		}
-	}
-
-	fun IrDelegatingConstructorCall.visit(padding: Int): String {
-		return buildString {
-			append("/* 父类构造调用 */")
 		}
 	}
 
@@ -342,7 +411,12 @@ class ClassCodegen(val context: ClrBackendContext) {
 			}
 			append(constructedClass.name)
 			append("(")
-			append(valueArguments.filterNotNull().joinToString(", ") { it.visit(padding + 1) })
+			append(
+				valueArguments
+					.filterNotNull()
+					.mapNotNull { it.visit(padding + 1) }
+					.joinToString(", ")
+			)
 			append(")")
 		}
 	}
@@ -372,9 +446,11 @@ class ClassCodegen(val context: ClrBackendContext) {
 											append(" = ")
 											append(valueArguments[0]!!.visit(padding + 1))
 										}
+
 										name.startsWith("<get-") -> {
 											append(name.substring("<get-".length, name.length - 1))
 										}
+
 										else -> TODO(name)
 									}
 									return@buildString
@@ -388,7 +464,25 @@ class ClassCodegen(val context: ClrBackendContext) {
 									?: throw IllegalStateException("Expected IrClass but got ${parent::class.java}: ${parent.render()}")
 								append(typeMapper.mapType(outer.defaultType))
 								append(".")
-								append(function.name.asString())
+								if (function.name.isSpecial) {
+									val name = function.name.asString()
+									when {
+										name.startsWith("<set-") -> {
+											append(name.substring("<set-".length, name.length - 1))
+											append(" = ")
+											append(valueArguments[0]!!.visit(padding + 1))
+										}
+
+										name.startsWith("<get-") -> {
+											append(name.substring("<get-".length, name.length - 1))
+										}
+
+										else -> TODO(name)
+									}
+									return@buildString
+								} else {
+									append(function.name.asString())
+								}
 							}
 
 							else -> {
@@ -396,11 +490,23 @@ class ClassCodegen(val context: ClrBackendContext) {
 									function.isOperator -> {
 										when (function.name.asString()) {
 											"plus" -> {
-												append(
-													arguments
-														.filterNotNull()
-														.joinToString(" + ") { it.visit(padding + 1) }
-												)
+												append("(")
+												append(arguments[0]!!.visit(padding + 1))
+												append(")")
+												append(" + ")
+												append("(")
+												append(arguments[1]!!.visit(padding + 1))
+												append(")")
+											}
+
+											"times" -> {
+												append("(")
+												append(arguments[0]!!.visit(padding + 1))
+												append(")")
+												append(" * ")
+												append("(")
+												append(arguments[1]!!.visit(padding + 1))
+												append(")")
 											}
 
 											else -> TODO(function.name.asString())
@@ -411,14 +517,37 @@ class ClassCodegen(val context: ClrBackendContext) {
 									else -> {
 										append(dispatchReceiver!!.visit(padding + 1))
 										append(".")
-										append(function.name.asString())
+										if (function.name.isSpecial) {
+											val name = function.name.asString()
+											when {
+												name.startsWith("<set-") -> {
+													append(name.substring("<set-".length, name.length - 1))
+													append(" = ")
+													append(valueArguments[0]!!.visit(padding + 1))
+												}
+
+												name.startsWith("<get-") -> {
+													append(name.substring("<get-".length, name.length - 1))
+												}
+
+												else -> TODO(name)
+											}
+											return@buildString
+										} else {
+											append(function.name.asString())
+										}
 									}
 								}
 							}
 						}
 
 						append("(")
-						append(valueArguments.filterNotNull().joinToString(", ") { it.visit(padding + 1) })
+						append(
+							valueArguments
+								.filterNotNull()
+								.mapNotNull { it.visit(padding + 1) }
+								.joinToString(", ")
+						)
 						append(")")
 					}
 
@@ -430,7 +559,12 @@ class ClassCodegen(val context: ClrBackendContext) {
 				append("/* Error processing call: ${e.message} */")
 				append(symbol.owner.name.asString())
 				append("(")
-				append(valueArguments.filterNotNull().joinToString(", ") { it.visit(padding + 1) })
+				append(
+					valueArguments
+						.filterNotNull()
+						.mapNotNull { it.visit(padding + 1) }
+						.joinToString(", ")
+				)
 				append(")")
 			}
 		}
@@ -463,15 +597,13 @@ class ClassCodegen(val context: ClrBackendContext) {
 		}
 	}
 
-	fun IrExpression.visit(padding: Int): String {
+	fun IrExpression.visit(padding: Int): String? {
 		return when (this) {
 			is IrConst -> visit(padding)
 			is IrCall -> visit(padding)
 			is IrStringConcatenation -> visit(padding)
 			is IrGetValue -> visit(padding)
-			is IrDelegatingConstructorCall -> visit(padding)
 			is IrConstructorCall -> visit(padding)
-			is IrInstanceInitializerCall -> visit(padding)
 			is IrGetObjectValue -> visit(padding)
 			is IrReturn -> visit(padding)
 			is IrSetValue -> visit(padding)
@@ -489,25 +621,29 @@ class ClassCodegen(val context: ClrBackendContext) {
 	}
 
 	fun IrStringConcatenation.visit(padding: Int): String {
-		return buildString {
-			append(arguments.joinToString(" + ") { it.visit(padding + 1) })
-		}
+		return arguments
+			.mapNotNull { it.visit(padding + 1) }
+			.joinToString(" + ")
 	}
 
 	fun IrGetValue.visit(padding: Int): String {
-		return buildString {
-			append(symbol.visit(padding + 1))
-		}
+		return symbol.visit(padding + 1)
 	}
 
 	fun IrSymbol.visit(padding: Int): String {
 		return when (this) {
-			is IrVariableSymbol -> {
-				owner.name.asString()
-			}
+			is IrVariableSymbol,
+			is IrValueSymbol,
+				-> {
+				val name = owner.name
+				when (name.isSpecial) {
+					true -> when (name.asString()) {
+						"<this>" -> "this"
+						else -> "/* Unsupported special name: $name */"
+					}
 
-			is IrValueSymbol -> {
-				owner.name.asString()
+					else -> owner.name.asString()
+				}
 			}
 
 			else -> "/* Unsupported symbol: ${this::class.java.simpleName} */"

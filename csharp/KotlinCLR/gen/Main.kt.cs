@@ -1,19 +1,12 @@
-public sealed class MainKt
+public sealed class Rectangle
 {
-    public static global::System.Double PI { get;  } 
-    public static global::System.Int32 x { get; set;  } 
-    public static void incrementX()
+    public Rectangle(global::System.Double height, global::System.Double length) : base()
     {
-        global::MainKt.x = global::MainKt.x + 1;
+        this.height = height;
+        this.length = length;
+        this.perimeter = ((this.height) + (this.length)) * (2);
     }
-    public static void main()
-    {
-        global::kotlin.io.ConsoleKt.println("x = " + global::MainKt.x + ", PI = " + global::MainKt.PI);
-        global::MainKt.incrementX();
-        global::kotlin.io.ConsoleKt.println("x = " + global::MainKt.x + ", PI = " + global::MainKt.PI);
-    }
-    public static void Main(global::System.String[] args)
-    {
-        global::MainKt.main();
-    }
+    public global::System.Double height { get; }
+    public global::System.Double length { get; }
+    public global::System.Double perimeter { get; }
 }

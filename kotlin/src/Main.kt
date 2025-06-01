@@ -1,12 +1,3 @@
-val PI = 3.14
-var x = 0
-
-fun incrementX() {
-	x += 1
-}
-
-fun main() {
-	println("x = $x, PI = $PI")
-	incrementX()
-	println("x = $x, PI = $PI")
+class Rectangle(val height: Double, val length: Double) {
+	val perimeter = (height + length) * 2
 }

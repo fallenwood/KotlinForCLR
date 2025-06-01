@@ -1,15 +1,17 @@
 FILE: Main.kt
-    public final val PI: R|kotlin/Double| = Double(3.14)
-        public get(): R|kotlin/Double|
-    public final var x: R|kotlin/Int| = Int(0)
-        public get(): R|kotlin/Int|
-        public set(value: R|kotlin/Int|): R|kotlin/Unit|
-    public final fun incrementX(): R|kotlin/Unit| {
-        R|/x| = R|/x|.R|kotlin/Int.plus|(Int(1))
-    }
-    public final fun main(): R|kotlin/Unit| {
-        R|kotlin/io/println|(<strcat>(String(x = ), R|/x|, String(, PI = ), R|/PI|))
-        R|/incrementX|()
-        R|kotlin/io/println|(<strcat>(String(x = ), R|/x|, String(, PI = ), R|/PI|))
+    public final class Rectangle : R|kotlin/Any| {
+        public constructor(height: R|kotlin/Double|, length: R|kotlin/Double|): R|Rectangle| {
+            super<R|kotlin/Any|>()
+        }
+
+        public final val height: R|kotlin/Double| = R|<local>/height|
+            public get(): R|kotlin/Double|
+
+        public final val length: R|kotlin/Double| = R|<local>/length|
+            public get(): R|kotlin/Double|
+
+        public final val perimeter: R|kotlin/Double| = this@R|/Rectangle|.R|/Rectangle.height|.R|kotlin/Double.plus|(this@R|/Rectangle|.R|/Rectangle.length|).R|kotlin/Double.times|(Int(2))
+            public get(): R|kotlin/Double|
+
     }
 
