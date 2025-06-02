@@ -1,5 +1,9 @@
-open class Shape
+fun main() {
+	var a = 1
+	// simple name in template:
+	val s1 = "a is $a"
 
-class Rectangle(val height: Double, val length: Double): Shape() {
-	val perimeter = (height + length) * 2
+	a = 2
+	// arbitrary expression in template:
+	val s2 = "${s1.replace("is", "was")}, but now is $a"
 }

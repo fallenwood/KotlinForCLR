@@ -88,6 +88,7 @@ data object NodeField : AssemblyNode()
 data class NodeMethod(
 	val name: String,
 	val returnType: String?,
+	val attributes: List<String?>,
 	val genericArguments: List<String?>,
 	val parameters: List<NodeParameter>,
 	val isAbstract: Boolean,
@@ -107,5 +108,6 @@ data object NodeProperty : AssemblyNode()
 data class NodeParameter(
 	val name: String?,
 	val type: String?,
+	val hasDefaultValue: Boolean,
 	val position: Int,
 ) : AssemblyNode()

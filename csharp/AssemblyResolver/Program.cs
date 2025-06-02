@@ -27,8 +27,8 @@ public record NodeType(
 	string name,
 	string? @namespace,
 	string? baseType,
-	List<String?> interfaces,
-	List<String?> attributes,
+	List<string?> interfaces,
+	List<string?> attributes,
 	List<NodeConstructor> constructors,
 	List<NodeEvent> events,
 	List<NodeField> fields,
@@ -134,6 +134,7 @@ public record NodeField(
 public record NodeMethod(
 	string name,
 	string? returnType,
+	List<string?> attributes,
 	List<string?> genericArguments,
 	List<NodeParameter> parameters,
 	bool isAbstract,
@@ -145,8 +146,10 @@ public record NodeMethod(
 	bool isStatic,
 	bool isVirtual
 ) {
-	public static NodeMethod from(MethodInfo method) => new(name: method.Name,
+	public static NodeMethod from(MethodInfo method) => new(
+		name: method.Name,
 		returnType: method.ReturnType.FullName,
+		attributes: method.GetCustomAttributes().Select(it => it.GetType().FullName).ToList(),
 		genericArguments: method.GetGenericArguments().Select(it => it.FullName).ToList(),
 		parameters: method.GetParameters().Select(NodeParameter.from).ToList(),
 		isAbstract: method.IsAbstract,
@@ -169,10 +172,13 @@ public record NodeProperty(
 public record NodeParameter(
 	string? name,
 	string? type,
+	bool hasDefaultValue,
 	int position
 ) {
-	public static NodeParameter from(ParameterInfo parameter) => new(name: parameter.Name,
+	public static NodeParameter from(ParameterInfo parameter) => new(
+		name: parameter.Name,
 		type: parameter.ParameterType.FullName,
+		hasDefaultValue: parameter.HasDefaultValue,
 		position: parameter.Position
 	);
 }

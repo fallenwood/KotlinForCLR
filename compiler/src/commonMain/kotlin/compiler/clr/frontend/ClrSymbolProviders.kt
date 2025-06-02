@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.fir.declarations.impl.FirDeclarationStatusImpl
 import org.jetbrains.kotlin.fir.declarations.impl.FirResolvedDeclarationStatusImpl
 import org.jetbrains.kotlin.fir.expressions.builder.buildAnnotation
 import org.jetbrains.kotlin.fir.expressions.impl.FirEmptyAnnotationArgumentMapping
+import org.jetbrains.kotlin.fir.resolve.dfa.cfg.FirStub
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolNamesProvider
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProviderInternals
@@ -24,6 +25,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.ConeTypeProjection
 import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
+import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.fir.types.impl.FirImplicitNullableAnyTypeRef
 import org.jetbrains.kotlin.fir.types.toLookupTag
@@ -51,11 +53,17 @@ class ClrSymbolNamesProvider : FirSymbolNamesProvider() {
 	}
 
 	fun registerClassName(packageFqName: FqName, name: Name) {
-		classNames.getOrPut(packageFqName) { mutableSetOf() } += name
+		classNames.getOrPut(
+			key = packageFqName,
+			defaultValue = { mutableSetOf() }
+		) += name
 	}
 
 	fun registerCallableName(packageFqName: FqName, name: Name) {
-		callableNames.getOrPut(packageFqName) { mutableSetOf() } += name
+		callableNames.getOrPut(
+			key = packageFqName,
+			defaultValue = { mutableSetOf() }
+		) += name
 	}
 }
 
@@ -84,7 +92,7 @@ class ClrSymbolProvider(
 		}*/
 	}
 
-	private fun buildFile(node: NodeType) = FirFileSymbol().also { symbol ->
+	private fun buildFile(node: NodeType) = FirFileSymbol().also { fileSymbol ->
 		buildFile {
 			moduleData = firModuleData
 			origin = FirDeclarationOrigin.Library
@@ -98,14 +106,14 @@ class ClrSymbolProvider(
 				else -> buildClass(node).fir
 			}
 			name = node.name
-			this.symbol = symbol
+			symbol = fileSymbol
 		}
-		clrSymbolNamesProvider.registerPackageName(symbol.fir.packageFqName)
+		clrSymbolNamesProvider.registerPackageName(fileSymbol.fir.packageFqName)
 	}
 
 	private fun buildObject(node: NodeType) = FirRegularClassSymbol(
 		classId = classId(node.namespace ?: "", node.name)
-	).also { symbol ->
+	).also { classSymbol ->
 		buildRegularClass {
 			moduleData = firModuleData
 			origin = FirDeclarationOrigin.Library
@@ -117,20 +125,23 @@ class ClrSymbolProvider(
 			)
 			classKind = ClassKind.OBJECT
 
-			declarations += node.methods.map { buildTopLevelFunction(symbol.classId, it).fir }
+			declarations += node.methods.map { buildTopLevelFunction(classSymbol.classId, it).fir }
 
-			name = symbol.name
+			name = classSymbol.name
 			scopeProvider = session.kotlinScopeProvider
-			this.symbol = symbol
+			symbol = classSymbol
 		}
-		clrSymbolNamesProvider.registerClassName(symbol.packageFqName(), symbol.name)
-		classPackages.getOrPut(node.namespace ?: "") { mutableListOf() } += symbol.classId
-		classSymbols[symbol.classId] = symbol
+		clrSymbolNamesProvider.registerClassName(classSymbol.packageFqName(), classSymbol.name)
+		classPackages.getOrPut(
+			key = node.namespace ?: "",
+			defaultValue = { mutableListOf() }
+		) += classSymbol.classId
+		classSymbols[classSymbol.classId] = classSymbol
 	}
 
 	private fun buildFileClass(node: NodeType) = FirRegularClassSymbol(
 		classId = classId(node.namespace ?: "", node.name)
-	).also { symbol ->
+	).also { classSymbol ->
 		buildRegularClass {
 			moduleData = firModuleData
 			origin = FirDeclarationOrigin.Library
@@ -142,21 +153,24 @@ class ClrSymbolProvider(
 			)
 			classKind = ClassKind.CLASS
 
-			declarations += node.methods.map { buildTopLevelFunction(symbol.classId, it).fir }
+			declarations += node.methods.map { buildTopLevelFunction(classSymbol.classId, it).fir }
 
-			name = symbol.name
+			name = classSymbol.name
 			scopeProvider = session.kotlinScopeProvider
-			this.symbol = symbol
-			companionObjectSymbol = buildCompanionClass(node, symbol.classId)
+			symbol = classSymbol
+			companionObjectSymbol = buildCompanionClass(node, classSymbol.classId)
 		}
-		clrSymbolNamesProvider.registerClassName(symbol.packageFqName(), symbol.name)
-		classPackages.getOrPut(node.namespace ?: "") { mutableListOf() } += symbol.classId
-		classSymbols[symbol.classId] = symbol
+		clrSymbolNamesProvider.registerClassName(classSymbol.packageFqName(), classSymbol.name)
+		classPackages.getOrPut(
+			key = node.namespace ?: "",
+			defaultValue = { mutableListOf() }
+		) += classSymbol.classId
+		classSymbols[classSymbol.classId] = classSymbol
 	}
 
 	private fun buildClass(node: NodeType) = FirRegularClassSymbol(
 		classId = classId(node.namespace ?: "", node.name)
-	).also { symbol ->
+	).also { classSymbol ->
 		buildRegularClass {
 			moduleData = firModuleData
 			origin = FirDeclarationOrigin.Library
@@ -170,24 +184,27 @@ class ClrSymbolProvider(
 
 			declarations += node.constructors
 				.filter { !it.isStatic }
-				.map { buildConstructor(symbol.classId, it).fir }
+				.map { buildConstructor(classSymbol.classId, it).fir }
 			declarations += node.methods
 				.filter { !it.isStatic }
-				.map { buildFunction(symbol.classId, it).fir }
+				.map { buildFunction(classSymbol.classId, it).fir }
 
-			name = symbol.name
+			name = classSymbol.name
 			scopeProvider = session.kotlinScopeProvider
-			this.symbol = symbol
-			companionObjectSymbol = buildCompanionClass(node, symbol.classId)
+			symbol = classSymbol
+			companionObjectSymbol = buildCompanionClass(node, classSymbol.classId)
 		}
-		clrSymbolNamesProvider.registerClassName(symbol.packageFqName(), symbol.name)
-		classPackages.getOrPut(node.namespace ?: "") { mutableListOf() } += symbol.classId
-		classSymbols[symbol.classId] = symbol
+		clrSymbolNamesProvider.registerClassName(classSymbol.packageFqName(), classSymbol.name)
+		classPackages.getOrPut(
+			key = node.namespace ?: "",
+			defaultValue = { mutableListOf() }
+		) += classSymbol.classId
+		classSymbols[classSymbol.classId] = classSymbol
 	}
 
 	private fun buildCompanionClass(node: NodeType, parent: ClassId) = FirRegularClassSymbol(
 		classId = parent.createNestedClassId(SpecialNames.DEFAULT_NAME_FOR_COMPANION_OBJECT)
-	).also { symbol ->
+	).also { classSymbol ->
 		buildRegularClass {
 			moduleData = firModuleData
 			origin = FirDeclarationOrigin.Library
@@ -206,23 +223,25 @@ class ClrSymbolProvider(
 
 			declarations += node.constructors
 				.filter { it.isStatic }
-				.map { buildConstructor(symbol.classId, it).fir }
+				.map { buildConstructor(classSymbol.classId, it).fir }
 			declarations += node.methods
 				.filter { it.isStatic }
-				.map { buildFunction(symbol.classId, it).fir }
+				.map { buildFunction(classSymbol.classId, it).fir }
 
-			name = symbol.name
+			name = classSymbol.name
 			scopeProvider = session.kotlinScopeProvider
-			this.symbol = symbol
+			symbol = classSymbol
 		}
-//		clrSymbolNamesProvider.registerClassName(symbol.packageFqName(), symbol.name)
-		classPackages.getOrPut(node.namespace ?: "") { mutableListOf() } += symbol.classId
-		classSymbols[symbol.classId] = symbol
+		classPackages.getOrPut(
+			key = node.namespace ?: "",
+			defaultValue = { mutableListOf() }
+		)+= classSymbol.classId
+		classSymbols[classSymbol.classId] = classSymbol
 	}
 
 	private fun buildConstructor(classId: ClassId, node: NodeConstructor) = FirConstructorSymbol(
 		callableId = classId.callableIdForConstructor()
-	).also { symbol ->
+	).also { constructorSymbol ->
 		buildConstructor {
 			moduleData = firModuleData
 			origin = FirDeclarationOrigin.Library
@@ -239,13 +258,13 @@ class ClrSymbolProvider(
 					false
 				)
 			}
-			this.symbol = symbol
+			symbol = constructorSymbol
 		}
 	}
 
 	private fun buildTopLevelFunction(classId: ClassId, node: NodeMethod) = FirNamedFunctionSymbol(
 		callableId = CallableId(classId.packageFqName, Name.identifier(node.name))
-	).also { symbol ->
+	).also { functionSymbol ->
 		buildSimpleFunction {
 			moduleData = firModuleData
 			origin = FirDeclarationOrigin.Library
@@ -259,10 +278,9 @@ class ClrSymbolProvider(
 				Modality.FINAL,
 				EffectiveVisibility.Public
 			)
-			returnTypeRef = if (node.returnType != null) {
-				resolveFirTypeRefForClr(node.returnType, true)
-			} else {
-				FirImplicitNullableAnyTypeRef(null)
+			returnTypeRef = when (node.returnType != null) {
+				true -> resolveFirTypeRefForClr(node.returnType, true)
+				else -> FirImplicitNullableAnyTypeRef(null)
 			}
 
 			dispatchReceiverType = ConeClassLikeTypeImpl(
@@ -271,18 +289,47 @@ class ClrSymbolProvider(
 				isMarkedNullable = false
 			)
 
-			valueParameters += node.parameters.map { buildValueParameter(it, symbol).fir }
+			val isExtension = node.attributes
+				.filterNotNull()
+				.any { it == "kotlin.clr.KotlinExtension" }
+			valueParameters += node.parameters
+				.drop(
+					when (isExtension) {
+						true -> 1
+						false -> 0
+					}
+				)
+				.map { buildValueParameter(it, functionSymbol).fir }
+			if (isExtension) {
+				receiverParameter = FirReceiverParameterSymbol().also { parameterSymbol ->
+					buildReceiverParameter {
+						moduleData = firModuleData
+						origin = FirDeclarationOrigin.Library
+						symbol = parameterSymbol
+						typeRef = buildResolvedTypeRef {
+							coneType = this@buildSimpleFunction.valueParameters.first().returnTypeRef.coneType
+						}
+						containingDeclarationSymbol = functionSymbol
+					}
+				}.fir
+			}
 			name = Name.identifier(node.name)
-			this.symbol = symbol
+			symbol = functionSymbol
 		}
-		clrSymbolNamesProvider.registerCallableName(symbol.packageFqName(), symbol.name)
-		functionPackages.getOrPut(symbol.packageFqName().asString()) { mutableListOf() } += symbol.callableId
-		functionSymbols.getOrPut(symbol.callableId) { mutableListOf() } += symbol
+		clrSymbolNamesProvider.registerCallableName(functionSymbol.packageFqName(), functionSymbol.name)
+		functionPackages.getOrPut(
+			key = functionSymbol.packageFqName().asString(),
+			defaultValue = { mutableListOf() }
+		) += functionSymbol.callableId
+		functionSymbols.getOrPut(
+			key = functionSymbol.callableId,
+			defaultValue = { mutableListOf() }
+		) += functionSymbol
 	}
 
 	private fun buildFunction(classId: ClassId, node: NodeMethod) = FirNamedFunctionSymbol(
 		callableId = CallableId(classId, Name.identifier(node.name))
-	).also { symbol ->
+	).also { functionSymbol ->
 		buildSimpleFunction {
 			moduleData = firModuleData
 			origin = FirDeclarationOrigin.Library
@@ -291,15 +338,14 @@ class ClrSymbolProvider(
 				Modality.FINAL,
 				EffectiveVisibility.Public
 			)
-			returnTypeRef = if (node.returnType != null) {
-				resolveFirTypeRefForClr(node.returnType, true)
-			} else {
-				FirImplicitNullableAnyTypeRef(null)
+			returnTypeRef = when (node.returnType != null) {
+				true -> resolveFirTypeRefForClr(node.returnType, true)
+				else -> FirImplicitNullableAnyTypeRef(null)
 			}
 
-			valueParameters += node.parameters.map { buildValueParameter(it, symbol).fir }
+			valueParameters += node.parameters.map { buildValueParameter(it, functionSymbol).fir }
 			name = Name.identifier(node.name)
-			this.symbol = symbol
+			symbol = functionSymbol
 			if (node.isStatic) {
 				annotations += buildAnnotation {
 					annotationTypeRef = buildResolvedTypeRef {
@@ -318,17 +364,19 @@ class ClrSymbolProvider(
 	private fun buildValueParameter(node: NodeParameter, containingSymbol: FirFunctionSymbol<*>) =
 		FirValueParameterSymbol(
 			name = Name.identifier(node.name!!)
-		).also { symbol ->
+		).also { parameterSymbol ->
 			buildValueParameter {
 				moduleData = firModuleData
 				origin = FirDeclarationOrigin.Library
-				returnTypeRef = if (node.type != null) {
-					resolveFirTypeRefForClr(node.type, true)
-				} else {
-					FirImplicitNullableAnyTypeRef(null)
+				returnTypeRef = when (node.type != null) {
+					true -> resolveFirTypeRefForClr(node.type, true)
+					else -> FirImplicitNullableAnyTypeRef(null)
 				}
-				name = symbol.callableId.callableName
-				this.symbol = symbol
+				name = parameterSymbol.callableId.callableName
+				symbol = parameterSymbol
+				if (node.hasDefaultValue) {
+					defaultValue = FirStub
+				}
 				containingDeclarationSymbol = containingSymbol
 			}
 		}
@@ -364,10 +412,9 @@ class ClrSymbolProvider(
 				if (fqNameParts.isNotEmpty()) {
 					val name = Name.identifier(fqNameParts.last())
 					val pkgSegments = fqNameParts.dropLast(1)
-					val pkgName = if (pkgSegments.isEmpty() && typeCacheContainsTopLevel(fqNameParts.last())) {
-						findNamespaceForType(fqNameParts.last()) ?: ""
-					} else {
-						pkgSegments.joinToString(".")
+					val pkgName = when (pkgSegments.isEmpty() && typeCacheContainsTopLevel(fqNameParts.last())) {
+						true -> findNamespaceForType(fqNameParts.last()) ?: ""
+						else -> pkgSegments.joinToString(".")
 					}
 					ClassId(FqName(pkgName), name) to false
 				} else {
@@ -376,12 +423,10 @@ class ClrSymbolProvider(
 			}
 		}
 
-		val isNullable = if (isReturnPosition && classId == StandardClassIds.Unit) {
-			false
-		} else if (isPrimitiveOrKnownValueType) {
-			false
-		} else {
-			true
+		val isNullable = when {
+			isReturnPosition && classId == StandardClassIds.Unit -> false
+			isPrimitiveOrKnownValueType -> false
+			else -> true
 		}
 
 		return buildResolvedTypeRef {

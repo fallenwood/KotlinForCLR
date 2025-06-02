@@ -1,16 +1,11 @@
 public sealed class MainKt : global::System.Object
 {
-    public static global::System.Double PI { get; }
-    public static global::System.Int32 x { get; set; }
-    public static void incrementX()
-    {
-        global::MainKt.x = (global::MainKt.x) + (1);
-    }
     public static void main()
     {
-        global::kotlin.io.ConsoleKt.println("x = " + global::MainKt.x + ", PI = " + global::MainKt.PI);
-        global::MainKt.incrementX();
-        global::kotlin.io.ConsoleKt.println("x = " + global::MainKt.x + ", PI = " + global::MainKt.PI);
+        global::System.Int32 a = 1;
+        global::System.String s1 = $"{("a is ")}{(a)}";
+        a = 2;
+        global::System.String s2 = $"{(global::kotlin.text.TextH.replace(s1, "is", "was"))}{(", but now is ")}{(a)}";
     }
     public static void Main(global::System.String[] args)
     {

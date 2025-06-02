@@ -601,8 +601,7 @@ class ClassCodegen(val context: ClrBackendContext) {
 
 						append("(")
 						append(
-							valueArguments
-								.filterNotNull()
+							listOfNotNull(extensionReceiver, *valueArguments.toTypedArray())
 								.mapNotNull { it.visit(padding + 1) }
 								.joinToString(", ")
 						)
@@ -683,7 +682,7 @@ class ClassCodegen(val context: ClrBackendContext) {
 	fun IrStringConcatenation.visit(padding: Int): String {
 		return arguments
 			.mapNotNull { it.visit(padding + 1) }
-			.joinToString(" + ")
+			.joinToString("", "$\"", "\"") { "{($it)}" }
 	}
 
 	fun IrGetValue.visit(padding: Int): String {

@@ -49,7 +49,7 @@ public sealed class MainKt : global::System.Object
 {
     public static void main()
     {
-        global::kotlin.io.ConsoleKt.println("sum(1, 2) = " + global::MainKt.sum(1, 2));
+        global::kotlin.io.ConsoleKt.println($"{("sum(1, 2) = ")}{(global::MainKt.sum(1, 2))}");
     }
     public static global::System.Int32 sum(global::System.Int32 a, global::System.Int32 b)
     {
@@ -73,7 +73,7 @@ public sealed class MainKt : global::System.Object
 {
     public static void printSum(global::System.Int32 a, global::System.Int32 b)
     {
-        global::kotlin.io.ConsoleKt.println("sum of " + a + " and " + b + " is " + (a) + (b));
+        global::kotlin.io.ConsoleKt.println($"{("sum of ")}{(a)}{(" and ")}{(b)}{(" is ")}{((a) + (b))}");
     }
 }
 ```
@@ -106,9 +106,9 @@ public sealed class MainKt : global::System.Object
     }
     public static void main()
     {
-        global::kotlin.io.ConsoleKt.println("x = " + global::MainKt.x + ", PI = " + global::MainKt.PI);
+        global::kotlin.io.ConsoleKt.println($"{("x = ")}{(global::MainKt.x)}{(", PI = ")}{(global::MainKt.PI)}");
         global::MainKt.incrementX();
-        global::kotlin.io.ConsoleKt.println("x = " + global::MainKt.x + ", PI = " + global::MainKt.PI);
+        global::kotlin.io.ConsoleKt.println($"{("x = ")}{(global::MainKt.x)}{(", PI = ")}{(global::MainKt.PI)}");
     }
     public static void Main(global::System.String[] args)
     {
@@ -146,5 +146,36 @@ public sealed class Rectangle : global::Shape
     public global::System.Double height { get; }
     public global::System.Double length { get; }
     public global::System.Double perimeter { get; }
+}
+```
+
+# [String templates](https://kotlinlang.org/docs/basic-syntax.html#string-templates)
+
+```kotlin
+fun main() {
+    var a = 1
+    // simple name in template:
+    val s1 = "a is $a"
+
+    a = 2
+    // arbitrary expression in template:
+    val s2 = "${s1.replace("is", "was")}, but now is $a"
+}
+```
+
+```c#
+public sealed class MainKt : global::System.Object
+{
+    public static void main()
+    {
+        global::System.Int32 a = 1;
+        global::System.String s1 = $"{("a is ")}{(a)}";
+        a = 2;
+        global::System.String s2 = $"{(global::kotlin.text.TextH.replace(s1, "is", "was"))}{(", but now is ")}{(a)}";
+    }
+    public static void Main(global::System.String[] args)
+    {
+        global::MainKt.main();
+    }
 }
 ```
