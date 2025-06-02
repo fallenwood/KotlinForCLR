@@ -1,21 +1,16 @@
-public sealed class Rectangle
+public sealed class MainKt : global::System.Object
 {
-    public Rectangle(global::System.Double height, global::System.Double length) : base()
+    public static global::System.Double PI { get; }
+    public static global::System.Int32 x { get; set; }
+    public static void incrementX()
     {
-        this.height = height;
-        this.length = length;
-        this.perimeter = ((this.height) + (this.length)) * (2);
+        global::MainKt.x = (global::MainKt.x) + (1);
     }
-    public global::System.Double height { get; }
-    public global::System.Double length { get; }
-    public global::System.Double perimeter { get; }
-}
-public sealed class MainKt
-{
     public static void main()
     {
-        global::Rectangle rectangle = new global::Rectangle(5.0, 2.0);
-        global::kotlin.io.ConsoleKt.println("The perimeter is " + rectangle.perimeter);
+        global::kotlin.io.ConsoleKt.println("x = " + global::MainKt.x + ", PI = " + global::MainKt.PI);
+        global::MainKt.incrementX();
+        global::kotlin.io.ConsoleKt.println("x = " + global::MainKt.x + ", PI = " + global::MainKt.PI);
     }
     public static void Main(global::System.String[] args)
     {

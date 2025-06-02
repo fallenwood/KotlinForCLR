@@ -40,34 +40,34 @@ class ClassCodegen(val context: ClrBackendContext) {
 		)
 	}
 
-	fun IrClass.visit(padding: Int) = buildString {
-		repeat(padding) { append("    ") }
-		when (visibility.delegate) {
-			is Visibilities.Private -> append("private ")
-			is Visibilities.Protected -> append("protected ")
-			is Visibilities.Internal -> append("internal ")
-			is Visibilities.Public -> append("public ")
-		}
-		when (modality) {
-			FINAL -> append("sealed ")
-			ABSTRACT -> append("abstract ")
-			SEALED -> TODO()
-			OPEN -> {}
-		}
-		when (kind) {
-			CLASS -> append(visitClass(padding))
-			INTERFACE -> append(visitInterface(padding))
-			ENUM_CLASS -> append(visitEnumClass(padding))
-			ENUM_ENTRY -> TODO()
-			ANNOTATION_CLASS -> append(visitAnnotationClass(padding))
-			OBJECT -> append(visitObject(padding))
-		}
+	fun IrClass.visit(padding: Int) = when (kind) {
+		CLASS -> visitClass(padding)
+		INTERFACE -> visitInterface(padding)
+		ENUM_CLASS -> visitEnumClass(padding)
+		ENUM_ENTRY -> TODO()
+		ANNOTATION_CLASS -> visitAnnotationClass(padding)
+		OBJECT -> visitObject(padding)
 	}
 
 	fun IrClass.visitClass(padding: Int): String {
 		return buildString {
+			repeat(padding) { append("    ") }
+			when (visibility.delegate) {
+				is Visibilities.Private -> append("private ")
+				is Visibilities.Protected -> append("protected ")
+				is Visibilities.Internal -> append("internal ")
+				is Visibilities.Public -> append("public ")
+			}
+			when (modality) {
+				FINAL -> append("sealed ")
+				ABSTRACT -> append("abstract ")
+				SEALED -> TODO()
+				OPEN -> {}
+			}
 			append("class ")
 			append(name)
+			append(" : ")
+			append(superTypes.joinToString(", ") { typeMapper.mapType(it) })
 			appendLine()
 			repeat(padding) { append("    ") }
 			append("{")
@@ -85,8 +85,25 @@ class ClassCodegen(val context: ClrBackendContext) {
 
 	fun IrClass.visitInterface(padding: Int): String {
 		return buildString {
+			repeat(padding) { append("    ") }
+			when (visibility.delegate) {
+				is Visibilities.Private -> append("private ")
+				is Visibilities.Protected -> append("protected ")
+				is Visibilities.Internal -> append("internal ")
+				is Visibilities.Public -> append("public ")
+			}
+			when (modality) {
+				FINAL -> append("sealed ")
+				ABSTRACT -> append("abstract ")
+				SEALED -> TODO()
+				OPEN -> {}
+			}
 			append("interface ")
 			append(name)
+			if (superTypes.isNotEmpty()) {
+				append(" : ")
+				append(superTypes.joinToString(", ") { typeMapper.mapType(it) })
+			}
 			appendLine()
 			repeat(padding) { append("    ") }
 			append("{")
@@ -104,6 +121,19 @@ class ClassCodegen(val context: ClrBackendContext) {
 
 	fun IrClass.visitEnumClass(padding: Int): String {
 		return buildString {
+			repeat(padding) { append("    ") }
+			when (visibility.delegate) {
+				is Visibilities.Private -> append("private ")
+				is Visibilities.Protected -> append("protected ")
+				is Visibilities.Internal -> append("internal ")
+				is Visibilities.Public -> append("public ")
+			}
+			when (modality) {
+				FINAL -> append("sealed ")
+				ABSTRACT -> append("abstract ")
+				SEALED -> TODO()
+				OPEN -> {}
+			}
 			append("enum ")
 			append(name)
 			appendLine()
@@ -123,6 +153,19 @@ class ClassCodegen(val context: ClrBackendContext) {
 
 	fun IrClass.visitAnnotationClass(padding: Int): String {
 		return buildString {
+			repeat(padding) { append("    ") }
+			when (visibility.delegate) {
+				is Visibilities.Private -> append("private ")
+				is Visibilities.Protected -> append("protected ")
+				is Visibilities.Internal -> append("internal ")
+				is Visibilities.Public -> append("public ")
+			}
+			when (modality) {
+				FINAL -> append("sealed ")
+				ABSTRACT -> append("abstract ")
+				SEALED -> TODO()
+				OPEN -> {}
+			}
 			append("class ")
 			append(name)
 			append(" : global::System.Attribute")
@@ -143,8 +186,23 @@ class ClassCodegen(val context: ClrBackendContext) {
 
 	fun IrClass.visitObject(padding: Int): String {
 		return buildString {
+			repeat(padding) { append("    ") }
+			when (visibility.delegate) {
+				is Visibilities.Private -> append("private ")
+				is Visibilities.Protected -> append("protected ")
+				is Visibilities.Internal -> append("internal ")
+				is Visibilities.Public -> append("public ")
+			}
+			when (modality) {
+				FINAL -> append("sealed ")
+				ABSTRACT -> append("abstract ")
+				SEALED -> TODO()
+				OPEN -> {}
+			}
 			append("class ")
 			append(name)
+			append(" : ")
+			append(superTypes.joinToString(", ") { typeMapper.mapType(it) })
 			appendLine()
 			repeat(padding) { append("    ") }
 			append("{")

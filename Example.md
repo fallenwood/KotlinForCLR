@@ -16,7 +16,7 @@ fun main() {
 ```
 
 ```c#
-public sealed class MainKt
+public sealed class MainKt : global::System.Object
 {
     public static void main()
     {
@@ -27,7 +27,7 @@ public sealed class MainKt
     }
     public static void Main(global::System.String[] args)
     {
-        main();
+        global::MainKt.main();
     }
 }
 ```
@@ -45,7 +45,7 @@ fun sum(a: Int, b: Int): Int {
 ```
 
 ```c#
-public sealed class MainKt
+public sealed class MainKt : global::System.Object
 {
     public static void main()
     {
@@ -53,11 +53,11 @@ public sealed class MainKt
     }
     public static global::System.Int32 sum(global::System.Int32 a, global::System.Int32 b)
     {
-        return a + b;
+        return (a) + (b);
     }
     public static void Main(global::System.String[] args)
     {
-        main();
+        global::MainKt.main();
     }
 }
 ```
@@ -69,19 +69,11 @@ fun printSum(a: Int, b: Int): Unit {
 ```
 
 ```c#
-public sealed class MainKt
+public sealed class MainKt : global::System.Object
 {
-    public static void main()
-    {
-        global::MainKt.printSum(1, 2);
-    }
     public static void printSum(global::System.Int32 a, global::System.Int32 b)
     {
-        global::kotlin.io.ConsoleKt.println("sum of " + a + " and " + b + " is " + a + b);
-    }
-    public static void Main(global::System.String[] args)
-    {
-        global::MainKt.main();
+        global::kotlin.io.ConsoleKt.println("sum of " + a + " and " + b + " is " + (a) + (b));
     }
 }
 ```
@@ -104,13 +96,13 @@ fun main() {
 ```
 
 ```c#
-public sealed class MainKt
+public sealed class MainKt : global::System.Object
 {
-    public static global::System.Double PI { get;  } 
-    public static global::System.Int32 x { get; set;  } 
+    public static global::System.Double PI { get; }
+    public static global::System.Int32 x { get; set; }
     public static void incrementX()
     {
-        global::MainKt.x = global::MainKt.x + 1;
+        global::MainKt.x = (global::MainKt.x) + (1);
     }
     public static void main()
     {
@@ -128,18 +120,22 @@ public sealed class MainKt
 # [Creating classes and instances](https://kotlinlang.org/docs/basic-syntax.html#creating-classes-and-instances)
 
 ```kotlin
-class Rectangle(val height: Double, val length: Double) {
+open class Shape
+
+class Rectangle(val height: Double, val length: Double): Shape() {
     val perimeter = (height + length) * 2
-}
-fun main() {
-    val rectangle = Rectangle(5.0, 2.0)
-    println("The perimeter is ${rectangle.perimeter}")
 }
 ```
 
 
 ```c#
-public sealed class Rectangle
+public class Shape : global::System.Object
+{
+    public Shape() : base()
+    {
+    }
+}
+public sealed class Rectangle : global::Shape
 {
     public Rectangle(global::System.Double height, global::System.Double length) : base()
     {
@@ -150,17 +146,5 @@ public sealed class Rectangle
     public global::System.Double height { get; }
     public global::System.Double length { get; }
     public global::System.Double perimeter { get; }
-}
-public sealed class MainKt
-{
-    public static void main()
-    {
-        global::Rectangle rectangle = new global::Rectangle(5.0, 2.0);
-        global::kotlin.io.ConsoleKt.println("The perimeter is " + rectangle.perimeter);
-    }
-    public static void Main(global::System.String[] args)
-    {
-        global::MainKt.main();
-    }
 }
 ```
