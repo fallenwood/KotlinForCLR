@@ -909,6 +909,54 @@ class ClrBuiltinsSymbolProvider(
 				symbol = functionSymbol
 			}
 		}.fir
+		declarations += FirNamedFunctionSymbol(
+			callableId = CallableId(classId, Name.identifier("compareTo"))
+		).also { functionSymbol ->
+			buildSimpleFunction {
+				this.moduleData = moduleData
+				origin = FirDeclarationOrigin.BuiltIns
+				status = FirDeclarationStatusImpl(
+					Visibilities.Public,
+					Modality.FINAL
+				).apply {
+					isOperator = true
+				}.resolved(
+					Visibilities.Public,
+					Modality.FINAL,
+					EffectiveVisibility.Public
+				)
+				returnTypeRef = buildResolvedTypeRef {
+					coneType = ConeClassLikeTypeImpl(
+						classId.toLookupTag(),
+						emptyArray(),
+						false
+					)
+				}
+				dispatchReceiverType = ConeClassLikeTypeImpl(
+					classId.toLookupTag(),
+					emptyArray(),
+					false
+				)
+				valueParameters += FirValueParameterSymbol(Name.identifier("other")).also { valueParameterSymbol ->
+					buildValueParameter {
+						this.moduleData = moduleData
+						origin = FirDeclarationOrigin.BuiltIns
+						returnTypeRef = buildResolvedTypeRef {
+							coneType = ConeClassLikeTypeImpl(
+								classId.toLookupTag(),
+								emptyArray(),
+								false
+							)
+						}
+						name = valueParameterSymbol.name
+						symbol = valueParameterSymbol
+						containingDeclarationSymbol = functionSymbol
+					}
+				}.fir
+				name = functionSymbol.callableId.callableName
+				symbol = functionSymbol
+			}
+		}.fir
 	}
 	private val longSymbol = StandardClassIds.Long.buildSymbol(moduleData) { classId ->
 		status = FirResolvedDeclarationStatusImpl(

@@ -1,8 +1,13 @@
 FILE: Main.kt
-    public final fun main(): R|kotlin/Unit| {
-        lvar a: R|kotlin/Int| = Int(1)
-        lval s1: R|kotlin/String| = <strcat>(String(a is ), R|<local>/a|)
-        R|<local>/a| = Int(2)
-        lval s2: R|kotlin/String| = <strcat>(R|<local>/s1|.R|kotlin/text/replace|(String(is), String(was)), String(, but now is ), R|<local>/a|)
+    public final fun maxOf(a: R|kotlin/Int|, b: R|kotlin/Int|): R|kotlin/Int| {
+        when () {
+            CMP(>, R|<local>/a|.R|kotlin/Int.compareTo|(R|<local>/b|)) ->  {
+                ^maxOf R|<local>/a|
+            }
+            else ->  {
+                ^maxOf R|<local>/b|
+            }
+        }
+
     }
 

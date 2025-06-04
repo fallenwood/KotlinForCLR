@@ -179,3 +179,32 @@ public sealed class MainKt : global::System.Object
     }
 }
 ```
+
+# [Conditional expressions](https://kotlinlang.org/docs/basic-syntax.html#conditional-expressions)
+
+```kotlin
+fun maxOf(a: Int, b: Int): Int {
+    if (a > b) {
+        return a
+    } else {
+        return b
+    }
+}
+```
+
+
+```c#
+public sealed class MainKt : global::System.Object
+{
+    public static global::System.Int32 maxOf(global::System.Int32 a, global::System.Int32 b)
+    {
+        if ((a) > (b)) 
+        {
+            return a;
+        }
+        else if (true) 
+        {
+            return b;
+        }
+    }
+}```

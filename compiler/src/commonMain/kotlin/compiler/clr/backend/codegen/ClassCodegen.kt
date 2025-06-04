@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.fir.lazy.Fir2IrLazySimpleFunction
 import org.jetbrains.kotlin.fir.types.classId
 import org.jetbrains.kotlin.fir.types.coneType
+import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
@@ -414,19 +415,29 @@ class ClassCodegen(val context: ClrBackendContext) {
 		return statements
 			.filterNot { it is IrDelegatingConstructorCall }
 			.filterNot { it is IrInstanceInitializerCall }
-			.mapNotNull {
-				when (it) {
+			.map {
+				it to when (it) {
 					is IrExpression -> it.visit(padding)
 					is IrVariable -> it.visit(padding)
 					else -> "/* Unsupported statement: ${it::class.java.simpleName} */"
 				}
 			}
-			.filter { it.isNotEmpty() }
+			.filter { it.second != null }
+			.map { it.first to it.second!! }
+			.filter { it.second.isNotEmpty() }
 			.joinToString("\n") {
 				buildString {
-					repeat(padding) { append("    ") }
-					append(it)
-					append(";")
+					when (it.first) {
+						is IrWhen -> {}
+						else -> repeat(padding) { append("    ") }
+					}
+
+					append(it.second)
+
+					when (it.first) {
+						is IrWhen -> {}
+						else -> append(";")
+					}
 				}
 			}
 			.let {
@@ -608,21 +619,37 @@ class ClassCodegen(val context: ClrBackendContext) {
 						append(")")
 					}
 
+					is IrExternalPackageFragment -> {
+						when (parent.packageFqName.asString()) {
+							"kotlin.internal.ir" -> {
+								// 处理特殊的kotlin.internal.ir包中的函数调用
+								when (function.name.asString()) {
+									"greater" -> {
+										append("(")
+										append(valueArguments[0]!!.visit(padding))
+										append(")")
+										append(" > ")
+										append("(")
+										append(valueArguments[1]!!.visit(padding))
+										append(")")
+									}
+
+									else -> throw IllegalStateException("Unsupported function in kotlin.internal.ir: ${function.name}")
+								}
+							}
+
+							else -> {
+								throw IllegalStateException("Unexpected external package fragment: ${parent.packageFqName}")
+							}
+						}
+					}
+
 					else -> {
 						throw IllegalStateException("Unexpected parent declaration: ${parent::class.java}: ${parent.render()}")
 					}
 				}
 			} catch (e: Exception) {
 				append("/* Error processing call: ${e.message} */")
-				append(symbol.owner.name.asString())
-				append("(")
-				append(
-					valueArguments
-						.filterNotNull()
-						.mapNotNull { it.visit(padding + 1) }
-						.joinToString(", ")
-				)
-				append(")")
 			}
 		}
 	}
@@ -654,6 +681,55 @@ class ClassCodegen(val context: ClrBackendContext) {
 		}
 	}
 
+	fun IrWhen.visit(padding: Int): String {
+		return branches
+			.mapNotNull { it.visit(padding) }
+			.joinToString("\n")
+	}
+
+	fun IrBranch.visit(padding: Int): String? {
+		return buildString {
+			repeat(padding) { append("    ") }
+			if (this@visit is IrElseBranch) {
+				append("else ")
+			}
+			append("if (")
+			append(condition.visit(padding))
+			appendLine(") ")
+			append(result.visit(padding))
+		}
+	}
+
+	fun IrBlock.visit(padding: Int): String {
+		return buildString {
+			repeat(padding) { append("    ") }
+			append("{")
+			appendLine()
+			append(
+				statements
+					.mapNotNull { it.visit(padding + 1) }
+					.joinToString("\n") {
+						buildString {
+							repeat(padding + 1) { append("    ") }
+							append(it)
+							append(";")
+						}
+					}
+			)
+			appendLine()
+			repeat(padding) { append("    ") }
+			append("}")
+		}
+	}
+
+	fun IrStatement.visit(padding: Int): String? {
+		return when (this) {
+			is IrExpression -> visit(padding)
+			is IrDeclaration -> visit(padding)
+			else -> "/* Unsupported statement: ${this::class.java.simpleName} */"
+		}
+	}
+
 	fun IrExpression.visit(padding: Int): String? {
 		return when (this) {
 			is IrConst -> visit(padding)
@@ -664,6 +740,8 @@ class ClassCodegen(val context: ClrBackendContext) {
 			is IrGetObjectValue -> visit(padding)
 			is IrReturn -> visit(padding)
 			is IrSetValue -> visit(padding)
+			is IrWhen -> visit(padding)
+			is IrBlock -> visit(padding)
 			else -> "/* Unsupported expression: ${this::class.java.simpleName} */"
 		}
 	}

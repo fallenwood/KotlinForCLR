@@ -2,27 +2,21 @@ MODULE_FRAGMENT name:<main>
   FILE fqName:<root> fileName:C:/Users/Yurin/IdeaProjects/KotlinCLRBackendCompiler/kotlin/src/Main.kt
     CLASS FILE_CLASS CLASS name:MainKt modality:FINAL visibility:public superTypes:[kotlin.Any]
       $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.MainKt
-      FUN name:main visibility:public modality:FINAL <> () returnType:kotlin.Unit
+      FUN name:maxOf visibility:public modality:FINAL <> (a:kotlin.Int, b:kotlin.Int) returnType:kotlin.Int
+        VALUE_PARAMETER name:a index:0 type:kotlin.Int
+        VALUE_PARAMETER name:b index:1 type:kotlin.Int
         BLOCK_BODY
-          VAR name:a type:kotlin.Int [var]
-            CONST Int type=kotlin.Int value=1
-          VAR name:s1 type:kotlin.String [val]
-            STRING_CONCATENATION type=kotlin.String
-              CONST String type=kotlin.String value="a is "
-              GET_VAR 'var a: kotlin.Int [var] declared in <root>.MainKt.main' type=kotlin.Int origin=null
-          SET_VAR 'var a: kotlin.Int [var] declared in <root>.MainKt.main' type=kotlin.Unit origin=EQ
-            CONST Int type=kotlin.Int value=2
-          VAR name:s2 type:kotlin.String [val]
-            STRING_CONCATENATION type=kotlin.String
-              CALL 'public final fun replace (oldValue: kotlin.String?, newValue: kotlin.String?, ignoreCase: kotlin.Boolean): kotlin.String? declared in kotlin.text.TextH' type=kotlin.String? origin=null
-                $this: GET_VAR 'val s1: kotlin.String [val] declared in <root>.MainKt.main' type=kotlin.String origin=null
-                $receiver: GET_VAR 'val s1: kotlin.String [val] declared in <root>.MainKt.main' type=kotlin.String origin=null
-                oldValue: CONST String type=kotlin.String value="is"
-                newValue: CONST String type=kotlin.String value="was"
-              CONST String type=kotlin.String value=", but now is "
-              GET_VAR 'var a: kotlin.Int [var] declared in <root>.MainKt.main' type=kotlin.Int origin=null
-      FUN GENERATED_EXTENDED_MAIN name:Main visibility:public modality:OPEN <> (args:kotlin.Array<kotlin.String>) returnType:kotlin.Unit
-        VALUE_PARAMETER name:args index:0 type:kotlin.Array<kotlin.String>
-        BLOCK_BODY
-          CALL 'public final fun main (): kotlin.Unit declared in <root>.MainKt' type=kotlin.Unit origin=null
+          WHEN type=kotlin.Nothing origin=IF
+            BRANCH
+              if: CALL 'public final fun greater (arg0: kotlin.Int, arg1: kotlin.Int): kotlin.Boolean declared in kotlin.internal.ir' type=kotlin.Boolean origin=GT
+                arg0: GET_VAR 'a: kotlin.Int declared in <root>.MainKt.maxOf' type=kotlin.Int origin=null
+                arg1: GET_VAR 'b: kotlin.Int declared in <root>.MainKt.maxOf' type=kotlin.Int origin=null
+              then: BLOCK type=kotlin.Unit origin=null
+                RETURN type=kotlin.Nothing from='public final fun maxOf (a: kotlin.Int, b: kotlin.Int): kotlin.Int declared in <root>.MainKt'
+                  GET_VAR 'a: kotlin.Int declared in <root>.MainKt.maxOf' type=kotlin.Int origin=null
+            BRANCH
+              if: CONST Boolean type=kotlin.Boolean value=true
+              then: BLOCK type=kotlin.Unit origin=null
+                RETURN type=kotlin.Nothing from='public final fun maxOf (a: kotlin.Int, b: kotlin.Int): kotlin.Int declared in <root>.MainKt'
+                  GET_VAR 'b: kotlin.Int declared in <root>.MainKt.maxOf' type=kotlin.Int origin=null
 
