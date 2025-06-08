@@ -229,10 +229,26 @@ public sealed class MainKt : global::System.Object
         {
             return a;
         }
-        else if (true)
+        else
         {
             return b;
         }
+    }
+}
+```
+
+```kotlin
+fun maxOf(a: Int, b: Int) = if (a > b) a else b
+```
+
+```c#
+public sealed class MainKt : global::System.Object
+{
+    public static global::System.Int32 maxOf(global::System.Int32 a, global::System.Int32 b)
+    {
+        return ((a) > (b))
+            ? (a)
+            : (b);
     }
 }
 ```

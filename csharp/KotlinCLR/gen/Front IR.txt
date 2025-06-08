@@ -1,11 +1,11 @@
 FILE: Main.kt
     public final fun maxOf(a: R|kotlin/Int|, b: R|kotlin/Int|): R|kotlin/Int| {
-        when () {
+        ^maxOf when () {
             CMP(>, R|<local>/a|.R|kotlin/Int.compareTo|(R|<local>/b|)) ->  {
-                ^maxOf R|<local>/a|
+                R|<local>/a|
             }
             else ->  {
-                ^maxOf R|<local>/b|
+                R|<local>/b|
             }
         }
 

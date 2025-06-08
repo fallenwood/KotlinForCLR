@@ -260,7 +260,7 @@ class ClassCodegen(val context: ClrBackendContext) {
 						.map { (property, initializer) ->
 							singleLineCode(
 								plainPlain("this.${property.name.asString()} = "),
-								initializer.visit(),
+								initializer.visitUsing(),
 								plainPlain(";")
 							)
 						}
@@ -372,7 +372,7 @@ class ClassCodegen(val context: ClrBackendContext) {
 		plainPlain("base("),
 		*valueArguments
 			.filterNotNull()
-			.mapNotNull { it.visit() }
+			.mapNotNull { it.visitUsing() }
 			.join(plainPlain(", "))
 			.toTypedArray(),
 		plainPlain(")"),
@@ -397,7 +397,7 @@ class ClassCodegen(val context: ClrBackendContext) {
 			add(plainPlain("("))
 			valueArguments
 				.filterNotNull()
-				.mapNotNull { it.visit() }
+				.mapNotNull { it.visitUsing() }
 				.join(plainPlain(", "))
 				.forEach { add(it) }
 			add(plainPlain(")"))
@@ -426,7 +426,7 @@ class ClassCodegen(val context: ClrBackendContext) {
 								name.startsWith("<set-") -> {
 									add(plainPlain(name.substring("<set-".length, name.length - 1)))
 									add(plainPlain(" = "))
-									add(valueArguments[0]!!.visit())
+									add(valueArguments[0]!!.visitUsing())
 								}
 
 								name.startsWith("<get-") -> {
@@ -450,7 +450,7 @@ class ClassCodegen(val context: ClrBackendContext) {
 							add(plainPlain(function.name.asString()))
 							add(plainPlain("("))
 							listOfNotNull(extensionReceiver, *valueArguments.toTypedArray())
-								.mapNotNull { it.visit() }
+								.mapNotNull { it.visitUsing() }
 								.join(plainPlain(", "))
 								.forEach { add(it) }
 							add(plainPlain(")"))
@@ -477,7 +477,7 @@ class ClassCodegen(val context: ClrBackendContext) {
 								name.startsWith("<set-") -> {
 									add(plainPlain(name.substring("<set-".length, name.length - 1)))
 									add(plainPlain(" = "))
-									add(valueArguments[0]!!.visit())
+									add(valueArguments[0]!!.visitUsing())
 								}
 
 								name.startsWith("<get-") -> {
@@ -501,7 +501,7 @@ class ClassCodegen(val context: ClrBackendContext) {
 							add(plainPlain(function.name.asString()))
 							add(plainPlain("("))
 							listOfNotNull(extensionReceiver, *valueArguments.toTypedArray())
-								.mapNotNull { it.visit() }
+								.mapNotNull { it.visitUsing() }
 								.join(plainPlain(", "))
 								.forEach { add(it) }
 							add(plainPlain(")"))
@@ -514,21 +514,21 @@ class ClassCodegen(val context: ClrBackendContext) {
 				function.isOperator -> when (function.name.asString()) {
 					"plus" -> singleLineListCode(
 						plainPlain("("),
-						arguments[0]!!.visit(),
+						arguments[0]!!.visitUsing(),
 						plainPlain(")"),
 						plainPlain(" + "),
 						plainPlain("("),
-						arguments[1]!!.visit(),
+						arguments[1]!!.visitUsing(),
 						plainPlain(")"),
 					)
 
 					"times" -> singleLineListCode(
 						plainPlain("("),
-						arguments[0]!!.visit(),
+						arguments[0]!!.visitUsing(),
 						plainPlain(")"),
 						plainPlain(" * "),
 						plainPlain("("),
-						arguments[1]!!.visit(),
+						arguments[1]!!.visitUsing(),
 						plainPlain(")"),
 					)
 
@@ -552,7 +552,7 @@ class ClassCodegen(val context: ClrBackendContext) {
 									name.startsWith("<set-") -> {
 										add(plainPlain(name.substring("<set-".length, name.length - 1)))
 										add(plainPlain(" = "))
-										add(valueArguments[0]!!.visit())
+										add(valueArguments[0]!!.visitUsing())
 									}
 
 									name.startsWith("<get-") -> {
@@ -575,7 +575,7 @@ class ClassCodegen(val context: ClrBackendContext) {
 								add(plainPlain(function.name.asString()))
 								add(plainPlain("("))
 								listOfNotNull(extensionReceiver, *valueArguments.toTypedArray())
-									.mapNotNull { it.visit() }
+									.mapNotNull { it.visitUsing() }
 									.join(plainPlain(", "))
 									.forEach { add(it) }
 								add(plainPlain(")"))
@@ -595,11 +595,11 @@ class ClassCodegen(val context: ClrBackendContext) {
 			"kotlin.internal.ir" -> when (function.name.asString()) {
 				"greater" -> singleLineListCode(
 					plainPlain("("),
-					valueArguments[0]!!.visit(),
+					valueArguments[0]!!.visitUsing(),
 					plainPlain(")"),
 					plainPlain(" > "),
 					plainPlain("("),
-					valueArguments[1]!!.visit(),
+					valueArguments[1]!!.visitUsing(),
 					plainPlain(")"),
 				)
 
@@ -638,7 +638,7 @@ class ClassCodegen(val context: ClrBackendContext) {
 
 	fun IrReturn.visit(): CodeNode = singleLineListCode(
 		plainPlain("return "),
-		value.visit(),
+		value.visitUsing(),
 	)
 
 	fun IrVariable.visit(): CodeNode = singleLineCode(
@@ -648,7 +648,7 @@ class ClassCodegen(val context: ClrBackendContext) {
 			add(plainPlain(name.asString()))
 			initializer?.let {
 				add(plainPlain(" = "))
-				add(it.visit())
+				add(it.visitUsing())
 			}
 		},
 	)
@@ -656,16 +656,59 @@ class ClassCodegen(val context: ClrBackendContext) {
 	fun IrSetValue.visit(): CodeNode = singleLineListCode(
 		symbol.visit(),
 		plainPlain(" = "),
-		value.visit(),
+		value.visitUsing(),
 	)
 
-	fun IrWhen.visit(): CodeNode = multiLineListCode(branches.mapNotNull { it.visit() })
+	fun IrWhen.visit() = branches.visit()
 
-	fun IrBranch.visit() = ifPadding(
-		`else` = this is IrElseBranch,
-		condition = condition.visit(),
-		content = result.visit(),
-	)
+	fun IrWhen.visitUsing() = branches.visitUsing(typeMapper.mapType(type))
+
+	fun List<IrBranch>.visit(): CodeNode {
+		val car = first()
+		val cdr = drop(1)
+		return ifPadding(
+			condition = car.condition.visit(),
+			content = car.result.visit(),
+			elseContent = when (cdr.size) {
+				1 -> cdr.single().result.visit()
+				else -> cdr.visit()
+			}
+		)
+	}
+
+	fun List<IrBranch>.visitUsing(type: String): CodeNode {
+		val car = first()
+		val cdr = drop(1)
+		return ifExpPadding(
+			condition = car.condition.visitUsing(),
+			content = when (val content = car.result) {
+				is IrBlock -> content.visitUsing().let { node ->
+					node as PaddingNode.Block
+					blockPadding(
+						*node.nodes.dropLast(1).toTypedArray(),
+						node.nodes.last().pushSingleLine(plainPlain("return ")),
+					)
+				}
+
+				else -> content.visitUsing()
+			} to type,
+			elseContent = when (cdr.size) {
+				1 -> when (val content = cdr.single().result) {
+					is IrBlock -> content.visitUsing().let { node ->
+						node as PaddingNode.Block
+						blockPadding(
+							*node.nodes.dropLast(1).toTypedArray(),
+							node.nodes.last().pushSingleLine(plainPlain("return ")),
+						)
+					}
+
+					else -> content.visitUsing()
+				} to type
+
+				else -> cdr.visitUsing(type) to type
+			}
+		)
+	}
 
 	fun IrBlock.visit() = blockPadding(statements.mapNotNull { it.visit() })
 
@@ -700,6 +743,12 @@ class ClassCodegen(val context: ClrBackendContext) {
 		)
 	}
 
+	// Using return type
+	fun IrExpression.visitUsing() = when (this) {
+		is IrWhen -> visitUsing()
+		else -> visit()
+	}
+
 	fun IrConst.visit() = when (value) {
 		is String -> plainPlain("\"$value\"")
 		is Number -> plainPlain(value.toString())
@@ -714,7 +763,7 @@ class ClassCodegen(val context: ClrBackendContext) {
 		)
 	}
 
-	fun IrStringConcatenation.visit(): CodeNode = stringConcatenationCode(arguments.mapNotNull { it.visit() })
+	fun IrStringConcatenation.visit(): CodeNode = stringConcatenationCode(arguments.mapNotNull { it.visitUsing() })
 
 	fun IrGetValue.visit() = symbol.visit()
 

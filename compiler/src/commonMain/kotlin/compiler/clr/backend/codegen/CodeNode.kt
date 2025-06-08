@@ -17,9 +17,15 @@ sealed class PlainNode : CodeNode() {
 
 sealed class PaddingNode : CodeNode() {
 	data class If(
-		val `else`: Boolean,
 		val condition: CodeNode,
 		val content: CodeNode,
+		val elseContent: CodeNode,
+	) : PaddingNode()
+
+	data class IfExp(
+		val condition: CodeNode,
+		val content: Pair<CodeNode, String>,
+		val elseContent: Pair<CodeNode, String>,
 	) : PaddingNode()
 
 	data class Block(
@@ -51,7 +57,17 @@ fun singleLinePlain(nodes: List<String>) = PlainNode.SingleLine(nodes.map { plai
 fun multiLinePlain(vararg nodes: String) = multiLinePlain(nodes.toList())
 fun multiLinePlain(nodes: List<String>) = PlainNode.MultiLine(nodes.map { plainPlain(it) })
 
-fun ifPadding(`else`: Boolean, condition: CodeNode, content: CodeNode) = PaddingNode.If(`else`, condition, content)
+fun ifPadding(
+	condition: CodeNode,
+	content: CodeNode,
+	elseContent: CodeNode,
+) = PaddingNode.If(condition, content, elseContent)
+
+fun ifExpPadding(
+	condition: CodeNode,
+	content: Pair<CodeNode, String>,
+	elseContent: Pair<CodeNode, String>,
+) = PaddingNode.IfExp(condition, content, elseContent)
 
 fun blockPadding(vararg nodes: CodeNode) = blockPadding(nodes.toList())
 fun blockPadding(nodes: List<CodeNode>) = PaddingNode.Block(nodes)
@@ -59,4 +75,9 @@ fun blockPadding(nodes: List<CodeNode>) = PaddingNode.Block(nodes)
 fun CodeNode.appendSingleLine(vararg appends: CodeNode) = when (this) {
 	is CodeNode.SingleLine -> singleLineCode(*nodes.toTypedArray(), *appends)
 	else -> singleLineCode(this, *appends)
+}
+
+fun CodeNode.pushSingleLine(vararg appends: CodeNode) = when (this) {
+	is CodeNode.SingleLine -> singleLineCode(*appends, *nodes.toTypedArray())
+	else -> singleLineCode(*appends, this)
 }

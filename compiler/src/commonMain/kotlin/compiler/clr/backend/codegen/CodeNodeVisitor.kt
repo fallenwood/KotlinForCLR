@@ -14,6 +14,7 @@ private class Visitor {
 		is PlainNode.SingleLine -> visit(padding)
 		is PlainNode.MultiLine -> visit(padding)
 		is PaddingNode.If -> visit(padding)
+		is PaddingNode.IfExp -> visit(padding)
 		is PaddingNode.Block -> visit(padding)
 	}
 
@@ -65,14 +66,62 @@ private class Visitor {
 
 	private fun PaddingNode.If.visit(padding: Int) = buildString {
 		repeat(padding) { append("    ") }
-		if (`else`) {
-			append("else ")
-		}
 		append("if (")
 		append(condition.visit(padding))
-		append(")")
-		appendLine()
+		appendLine(")")
 		append(content.visit(padding))
+		if (elseContent != noneCode) {
+			appendLine()
+			repeat(padding) { append("    ") }
+			appendLine("else")
+			append(elseContent.visit(padding))
+		}
+	}
+
+	private fun PaddingNode.IfExp.visit(padding: Int) = buildString {
+		append("(")
+		append(condition.visit(padding))
+		appendLine(")")
+		repeat(padding + 1) { append("    ") }
+		append("? ")
+		when (content.first is PaddingNode.Block) {
+			true -> {
+				append("(")
+				append("(global::System.Func<${content.second}>)")
+				append("(")
+				appendLine("() =>")
+				append(content.first.visit(padding + 1))
+				append(")")
+				append(")")
+				append("()")
+			}
+			else -> {
+				append("(")
+				append(content.first.visit(padding + 1))
+				append(")")
+			}
+		}
+
+		appendLine()
+		repeat(padding + 1) { append("    ") }
+		append(": ")
+		when (elseContent.first is PaddingNode.Block) {
+			true -> {
+				append("(")
+				append("(global::System.Func<${elseContent.second}>)")
+				append("(")
+				appendLine("() =>")
+				append(elseContent.first.visit(padding + 1))
+				append(")")
+				append(")")
+				append("()")
+			}
+			else -> {
+				append("(")
+				append(elseContent.first.visit(padding + 1))
+				append(")")
+			}
+		}
 	}
 
 	private fun PaddingNode.Block.visit(padding: Int) = buildString {

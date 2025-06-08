@@ -1,6 +1,6 @@
 # Kotlin CLR Backend Compiler
 
-![Icon](.idea/icon.png)
+<img src=".idea/icon.png" style="width: 256px; height: 256px"  alt="Icon"/>
 
 这是一个 Kotlin CLR 后端编译器, 旨在将 Kotlin 代码编译为 .NET CIL, 使得 Kotlin 开发者可以在 .NET 平台上使用 Kotlin 语言进行开发
 
