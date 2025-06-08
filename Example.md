@@ -25,6 +25,7 @@ public sealed class MainKt : global::System.Object
         global::kotlin.io.ConsoleKt.print("You entered the word: ");
         global::kotlin.io.ConsoleKt.print(yourWord);
     }
+
     public static void Main(global::System.String[] args)
     {
         global::MainKt.main();
@@ -51,10 +52,12 @@ public sealed class MainKt : global::System.Object
     {
         global::kotlin.io.ConsoleKt.println($"{("sum(1, 2) = ")}{(global::MainKt.sum(1, 2))}");
     }
+
     public static global::System.Int32 sum(global::System.Int32 a, global::System.Int32 b)
     {
         return (a) + (b);
     }
+
     public static void Main(global::System.String[] args)
     {
         global::MainKt.main();
@@ -98,18 +101,29 @@ fun main() {
 ```c#
 public sealed class MainKt : global::System.Object
 {
-    public static global::System.Double PI { get; }
-    public static global::System.Int32 x { get; set; }
+    public static global::System.Double PI
+    {
+        get;
+    }
+
+    public static global::System.Int32 x
+    {
+        get;
+        set;
+    }
+
     public static void incrementX()
     {
         global::MainKt.x = (global::MainKt.x) + (1);
     }
+
     public static void main()
     {
         global::kotlin.io.ConsoleKt.println($"{("x = ")}{(global::MainKt.x)}{(", PI = ")}{(global::MainKt.PI)}");
         global::MainKt.incrementX();
         global::kotlin.io.ConsoleKt.println($"{("x = ")}{(global::MainKt.x)}{(", PI = ")}{(global::MainKt.PI)}");
     }
+
     public static void Main(global::System.String[] args)
     {
         global::MainKt.main();
@@ -127,14 +141,15 @@ class Rectangle(val height: Double, val length: Double): Shape() {
 }
 ```
 
-
 ```c#
 public class Shape : global::System.Object
 {
     public Shape() : base()
     {
+
     }
 }
+
 public sealed class Rectangle : global::Shape
 {
     public Rectangle(global::System.Double height, global::System.Double length) : base()
@@ -143,9 +158,21 @@ public sealed class Rectangle : global::Shape
         this.length = length;
         this.perimeter = ((this.height) + (this.length)) * (2);
     }
-    public global::System.Double height { get; }
-    public global::System.Double length { get; }
-    public global::System.Double perimeter { get; }
+
+    public global::System.Double height
+    {
+        get;
+    }
+
+    public global::System.Double length
+    {
+        get;
+    }
+
+    public global::System.Double perimeter
+    {
+        get;
+    }
 }
 ```
 
@@ -173,6 +200,7 @@ public sealed class MainKt : global::System.Object
         a = 2;
         global::System.String s2 = $"{(global::kotlin.text.TextH.replace(s1, "is", "was"))}{(", but now is ")}{(a)}";
     }
+
     public static void Main(global::System.String[] args)
     {
         global::MainKt.main();
@@ -192,19 +220,19 @@ fun maxOf(a: Int, b: Int): Int {
 }
 ```
 
-
 ```c#
 public sealed class MainKt : global::System.Object
 {
     public static global::System.Int32 maxOf(global::System.Int32 a, global::System.Int32 b)
     {
-        if ((a) > (b)) 
+        if ((a) > (b))
         {
             return a;
         }
-        else if (true) 
+        else if (true)
         {
             return b;
         }
     }
-}```
+}
+```

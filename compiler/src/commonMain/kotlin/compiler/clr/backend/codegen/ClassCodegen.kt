@@ -3,8 +3,10 @@ package compiler.clr.backend.codegen
 import compiler.clr.backend.ClrBackendContext
 import compiler.clr.backend.mapping.IrTypeMapper
 import org.jetbrains.kotlin.descriptors.ClassKind.*
+import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Modality.*
 import org.jetbrains.kotlin.descriptors.Visibilities
+import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.fir.lazy.Fir2IrLazySimpleFunction
 import org.jetbrains.kotlin.fir.types.classId
 import org.jetbrains.kotlin.fir.types.coneType
@@ -16,774 +18,759 @@ import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.symbols.IrValueSymbol
 import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.javac.resolve.classId
+
+inline fun <T> List<T>.join(separator: T): List<T> = when {
+	isEmpty() -> this
+	else -> zipWithNext { node, _ -> listOf(node, separator) }.flatten() + last()
+}
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)
 class ClassCodegen(val context: ClrBackendContext) {
 	val typeMapper = IrTypeMapper(context)
 
-	fun IrFile.visit() = buildString {
+	fun IrFile.visit(): CodeNode {
 		val `package` = packageFqName
 
-		if (!`package`.isRoot) {
-			append("namespace $`package`;")
-			appendLine()
+		val content = multiLineCode(
+			*declarations
+				.map { declaration ->
+					when (declaration) {
+						is IrClass -> declaration.visit()
+						else -> multiLinePlain(
+							"/*",
+							"Unsupported declaration: ${declaration::class.java.simpleName}",
+							"at IrFile.visit: $this",
+							"*/",
+						)
+					}
+				}
+				.join(noneCode)
+				.toTypedArray()
+		).let {
+			when (it.nodes.size == 1) {
+				true -> it.nodes.single()
+				else -> it
+			}
 		}
 
-		append(
-			declarations.joinToString("\n") { declaration ->
-				when (declaration) {
-					is IrClass -> declaration.visit(0)
-					else -> error(declaration)
+		return when (!`package`.isRoot) {
+			true -> multiLineCode(
+				singleLinePlain("namespace $`package`"),
+				blockPadding(content),
+			)
+
+			else -> content
+		}
+	}
+
+	fun IrClass.visit() = when (kind) {
+		CLASS -> visitClass()
+		INTERFACE -> visitInterface()
+		ENUM_CLASS -> visitEnumClass()
+		ENUM_ENTRY -> multiLinePlain(
+			"/*",
+			"TODO enum entry",
+			"at IrClass.visit: $this",
+			"*/",
+		)
+
+		ANNOTATION_CLASS -> visitAnnotationClass()
+		OBJECT -> visitObject()
+	}
+
+	fun IrClass.visitClass() = multiLineCode(
+		singleLineCode(
+			visibility.delegate.visit(),
+			modality.visit(),
+			plainPlain("class "),
+			plainPlain(name.asString()),
+			plainPlain(" : "),
+			plainPlain(superTypes.joinToString(", ") { typeMapper.mapType(it) }),
+		),
+		blockPadding(
+			declarations
+				.mapNotNull { it.visit() }
+				.join(noneCode)
+		),
+	)
+
+	fun IrClass.visitInterface() = multiLineCode(
+		singleLineCode(
+			buildList {
+				add(visibility.delegate.visit())
+				add(modality.visit())
+				add(plainPlain("interface "))
+				add(plainPlain(name.asString()))
+				if (superTypes.isNotEmpty()) {
+					add(plainPlain(" : "))
+					add(plainPlain(superTypes.joinToString(", ") { typeMapper.mapType(it) }))
 				}
 			}
+		),
+		blockPadding(
+			declarations
+				.mapNotNull { it.visit() }
+				.join(noneCode)
+		),
+	)
+
+	fun IrClass.visitEnumClass() = multiLineCode(
+		singleLineCode(
+			visibility.delegate.visit(),
+			modality.visit(),
+			plainPlain("enum "),
+			plainPlain(name.asString()),
+		),
+		blockPadding(
+			declarations
+				.mapNotNull { it.visit() }
+				.join(noneCode)
+		),
+	)
+
+	fun IrClass.visitAnnotationClass() = multiLineCode(
+		singleLineCode(
+			visibility.delegate.visit(),
+			modality.visit(),
+			plainPlain("class "),
+			plainPlain(name.asString()),
+			plainPlain(" : global::System.Attribute"),
+		),
+		blockPadding(
+			declarations
+				.mapNotNull { it.visit() }
+				.join(noneCode)
+		),
+	)
+
+	fun IrClass.visitObject() = multiLineCode(
+		singleLineCode(
+			visibility.delegate.visit(),
+			modality.visit(),
+			plainPlain("class "),
+			plainPlain(name.asString()),
+			plainPlain(" : "),
+			plainPlain(superTypes.joinToString(", ") { typeMapper.mapType(it) }),
+		),
+		blockPadding(
+			singleLinePlain(
+				"public static ",
+				typeMapper.mapType(defaultType),
+				" INSTANCE { get; } = new ",
+				typeMapper.mapType(defaultType),
+				"();",
+			),
+			*declarations
+				.mapNotNull { it.visit() }
+				.join(noneCode)
+				.toTypedArray(),
+		),
+	)
+
+	fun IrDeclaration.visit(): CodeNode? {
+		if (isFakeOverride) return null
+		return when (this) {
+			is IrClass -> visit()
+			is IrFunction -> visit()
+			is IrProperty -> visit()
+			else -> multiLinePlain(
+				"/*",
+				"Unsupported declaration: ${this::class.java.simpleName}",
+				"at IrDeclaration.visit",
+				"*/"
+			)
+		}
+	}
+
+	fun IrFunction.visit() = when (this) {
+		is IrConstructor -> visit()
+		else -> multiLineCode(
+			singleLineCode(
+				buildList {
+					val isStatic = when {
+						parent is IrFile -> true
+						isStatic -> true
+						else -> false
+					}
+
+					val returnType = typeMapper.mapReturnType(returnType)
+
+					val parameters = valueParameters.map {
+						typeMapper.mapType(it.type) to it.name.asString()
+					}
+
+					add(visibility.delegate.visit())
+					if (isStatic) {
+						add(plainPlain("static "))
+					}
+					add(plainPlain("$returnType "))
+					add(plainPlain("${name.asString()}("))
+					add(plainPlain(parameters.joinToString(", ") { "${it.first} ${it.second}" }))
+					add(plainPlain(")"))
+				}
+			),
+			body?.visit() ?: blockPadding(
+				singleLinePlain(
+					when {
+						returnType.isUnit() -> ""
+						returnType.isString() -> "return \"\";"
+						returnType.isBoolean() -> "return false;"
+						returnType.isArray() -> "return new $returnType {};"
+						returnType.isNumber() -> "return 0;"
+						else -> "return null;"
+					}
+				)
+			),
 		)
 	}
 
-	fun IrClass.visit(padding: Int) = when (kind) {
-		CLASS -> visitClass(padding)
-		INTERFACE -> visitInterface(padding)
-		ENUM_CLASS -> visitEnumClass(padding)
-		ENUM_ENTRY -> TODO()
-		ANNOTATION_CLASS -> visitAnnotationClass(padding)
-		OBJECT -> visitObject(padding)
-	}
+	fun IrConstructor.visit() = multiLineCode(
+		singleLineCode(
+			buildList {
+				val className = (parent as? IrClass)?.name?.asString()!!
 
-	fun IrClass.visitClass(padding: Int): String {
-		return buildString {
-			repeat(padding) { append("    ") }
-			when (visibility.delegate) {
-				is Visibilities.Private -> append("private ")
-				is Visibilities.Protected -> append("protected ")
-				is Visibilities.Internal -> append("internal ")
-				is Visibilities.Public -> append("public ")
-			}
-			when (modality) {
-				FINAL -> append("sealed ")
-				ABSTRACT -> append("abstract ")
-				SEALED -> TODO()
-				OPEN -> {}
-			}
-			append("class ")
-			append(name)
-			append(" : ")
-			append(superTypes.joinToString(", ") { typeMapper.mapType(it) })
-			appendLine()
-			repeat(padding) { append("    ") }
-			append("{")
-			appendLine()
-			append(
-				declarations
-					.mapNotNull { it.visit(padding + 1) }
-					.joinToString("\n")
-			)
-			appendLine()
-			repeat(padding) { append("    ") }
-			append("}")
-		}
-	}
-
-	fun IrClass.visitInterface(padding: Int): String {
-		return buildString {
-			repeat(padding) { append("    ") }
-			when (visibility.delegate) {
-				is Visibilities.Private -> append("private ")
-				is Visibilities.Protected -> append("protected ")
-				is Visibilities.Internal -> append("internal ")
-				is Visibilities.Public -> append("public ")
-			}
-			when (modality) {
-				FINAL -> append("sealed ")
-				ABSTRACT -> append("abstract ")
-				SEALED -> TODO()
-				OPEN -> {}
-			}
-			append("interface ")
-			append(name)
-			if (superTypes.isNotEmpty()) {
-				append(" : ")
-				append(superTypes.joinToString(", ") { typeMapper.mapType(it) })
-			}
-			appendLine()
-			repeat(padding) { append("    ") }
-			append("{")
-			appendLine()
-			append(
-				declarations
-					.mapNotNull { it.visit(padding + 1) }
-					.joinToString("\n")
-			)
-			appendLine()
-			repeat(padding) { append("    ") }
-			append("}")
-		}
-	}
-
-	fun IrClass.visitEnumClass(padding: Int): String {
-		return buildString {
-			repeat(padding) { append("    ") }
-			when (visibility.delegate) {
-				is Visibilities.Private -> append("private ")
-				is Visibilities.Protected -> append("protected ")
-				is Visibilities.Internal -> append("internal ")
-				is Visibilities.Public -> append("public ")
-			}
-			when (modality) {
-				FINAL -> append("sealed ")
-				ABSTRACT -> append("abstract ")
-				SEALED -> TODO()
-				OPEN -> {}
-			}
-			append("enum ")
-			append(name)
-			appendLine()
-			repeat(padding) { append("    ") }
-			append("{")
-			appendLine()
-			append(
-				declarations
-					.mapNotNull { it.visit(padding + 1) }
-					.joinToString("\n")
-			)
-			appendLine()
-			repeat(padding) { append("    ") }
-			append("}")
-		}
-	}
-
-	fun IrClass.visitAnnotationClass(padding: Int): String {
-		return buildString {
-			repeat(padding) { append("    ") }
-			when (visibility.delegate) {
-				is Visibilities.Private -> append("private ")
-				is Visibilities.Protected -> append("protected ")
-				is Visibilities.Internal -> append("internal ")
-				is Visibilities.Public -> append("public ")
-			}
-			when (modality) {
-				FINAL -> append("sealed ")
-				ABSTRACT -> append("abstract ")
-				SEALED -> TODO()
-				OPEN -> {}
-			}
-			append("class ")
-			append(name)
-			append(" : global::System.Attribute")
-			appendLine()
-			repeat(padding) { append("    ") }
-			append("{")
-			appendLine()
-			append(
-				declarations
-					.mapNotNull { it.visit(padding + 1) }
-					.joinToString("\n")
-			)
-			appendLine()
-			repeat(padding) { append("    ") }
-			append("}")
-		}
-	}
-
-	fun IrClass.visitObject(padding: Int): String {
-		return buildString {
-			repeat(padding) { append("    ") }
-			when (visibility.delegate) {
-				is Visibilities.Private -> append("private ")
-				is Visibilities.Protected -> append("protected ")
-				is Visibilities.Internal -> append("internal ")
-				is Visibilities.Public -> append("public ")
-			}
-			when (modality) {
-				FINAL -> append("sealed ")
-				ABSTRACT -> append("abstract ")
-				SEALED -> TODO()
-				OPEN -> {}
-			}
-			append("class ")
-			append(name)
-			append(" : ")
-			append(superTypes.joinToString(", ") { typeMapper.mapType(it) })
-			appendLine()
-			repeat(padding) { append("    ") }
-			append("{")
-			appendLine()
-			repeat(padding + 1) { append("    ") }
-			append("public static ")
-			append(typeMapper.mapType(defaultType))
-			append(" INSTANCE { get; } = new ")
-			append(typeMapper.mapType(defaultType))
-			append("();")
-			appendLine()
-			append(
-				declarations
-					.mapNotNull { it.visit(padding + 1) }
-					.joinToString("\n")
-			)
-			appendLine()
-			repeat(padding) { append("    ") }
-			append("}")
-		}
-	}
-
-	fun IrDeclaration.visit(padding: Int): String? {
-		if (isFakeOverride) return null
-		return when (this) {
-			is IrClass -> visit(padding)
-			is IrFunction -> visit(padding)
-			is IrProperty -> visit(padding)
-			else -> buildString {
-				repeat(padding + 1) { append("    ") }
-				append("/* Unsupported declaration: ${this::class.java.simpleName} */")
-			}
-		}
-	}
-
-	fun IrFunction.visit(padding: Int) = when (this) {
-		is IrConstructor -> visit(padding)
-		else -> buildString {
-			// 确定是否为静态方法（顶级函数为static，类方法根据标记决定）
-			val isStatic = when {
-				parent is IrFile -> true  // 顶级函数总是static
-				isStatic -> true     // 明确标记为static的方法
-				else -> false             // 默认为普通实例方法
-			}
-
-			val returnType = typeMapper.mapReturnType(returnType)
-
-			// 方法参数
-			val parameters = valueParameters.map {
-				typeMapper.mapType(it.type) to it.name.asString()
-			}
-
-			// 开始生成方法声明
-			repeat(padding) { append("    ") }
-
-			when (visibility.delegate) {
-				is Visibilities.Private -> append("private ")
-				is Visibilities.Protected -> append("protected ")
-				is Visibilities.Internal -> append("internal ")
-				is Visibilities.Public -> append("public ")
-			}
-
-			// 静态构造函数或标记为静态的方法
-			if (isStatic) {
-				append("static ")
-			}
-			append("$returnType ")
-
-			append("${name.asString()}(")
-			append(parameters.joinToString(", ") { "${it.first} ${it.second}" })
-			append(")")
-			appendLine()
-			repeat(padding) { append("    ") }
-			append("{")
-
-			// 函数体
-			if (body != null) {
-				body?.visit(padding + 1)?.let {
-					appendLine()
-					append(it)
-					appendLine()
-					repeat(padding) { append("    ") }
+				val parameters = valueParameters.map {
+					typeMapper.mapType(it.type) to it.name.asString()
 				}
-			} else {
-				appendLine()
-				repeat(padding + 1) { append("    ") }
 
-				// 为不同返回类型生成默认返回值
-				when {
-					returnType == "void" -> {} // void方法不需要返回值
-					returnType == "string" -> append("return \"\";")
-					returnType == "bool" -> append("return false;")
-					returnType.endsWith("[]") -> append("return new $returnType {};")
-					returnType == "int" || returnType == "long" || returnType == "float" || returnType == "double" ->
-						append("return 0;")
-
-					else -> append("return null;")
+				add(visibility.delegate.visit())
+				add(plainPlain("$className("))
+				add(plainPlain(parameters.joinToString(", ") { "${it.first} ${it.second}" }))
+				add(plainPlain(")"))
+				if (body?.statements?.get(0) is IrDelegatingConstructorCall) {
+					add(plainPlain(" : "))
+					add((body?.statements?.get(0) as IrDelegatingConstructorCall).visit())
 				}
-				appendLine()
-				repeat(padding) { append("    ") }
 			}
-
-			append("}")
-		}
-	}
-
-	fun IrConstructor.visit(padding: Int) = buildString {
-		// 确定是否为构造函数
-		val className = (parent as? IrClass)?.name?.asString() ?: "Unknown"
-
-		// 方法参数
-		val parameters = valueParameters.map {
-			typeMapper.mapType(it.type) to it.name.asString()
-		}
-
-		// 开始生成方法声明
-		repeat(padding) { append("    ") }
-
-		when (visibility.delegate) {
-			is Visibilities.Private -> append("private ")
-			is Visibilities.Protected -> append("protected ")
-			is Visibilities.Internal -> append("internal ")
-			is Visibilities.Public -> append("public ")
-		}
-
-		append("$className(")
-		append(parameters.joinToString(", ") { "${it.first} ${it.second}" })
-		append(")")
-		if (body?.statements?.get(0) is IrDelegatingConstructorCall) {
-			// 如果有委托调用，则添加委托调用
-			append(" : ")
-			append((body?.statements?.get(0) as IrDelegatingConstructorCall).visit(padding + 1))
-		}
-
-		appendLine()
-		repeat(padding) { append("    ") }
-		append("{")
-
-		// 函数体
-		body?.visit(padding + 1)?.let {
-			appendLine()
-			append(it)
-		}
-
-		val parent = parentAsClass
-		parent.declarations
-			.filterIsInstance<IrProperty>()
-			.map { it to it.backingField?.initializer?.expression }
-			.filter { it.second != null }
-			.map { it.first to it.second!! }
-			.forEach { (property, initializer) ->
-				appendLine()
-				repeat(padding + 1) { append("    ") }
-				append("this.${property.name.asString()} = ${initializer.visit(padding)};")
+		),
+		blockPadding(
+			buildList {
+				body?.visit()?.let {
+					add(it)
+				}
+				addAll(
+					parentAsClass.declarations
+						.filterIsInstance<IrProperty>()
+						.map { it to it.backingField?.initializer?.expression }
+						.filter { it.second != null }
+						.map { it.first to it.second!! }
+						.map { (property, initializer) ->
+							singleLineCode(
+								plainPlain("this.${property.name.asString()} = "),
+								initializer.visit(),
+								plainPlain(";")
+							)
+						}
+				)
 			}
+		),
+	)
 
-		appendLine()
-		repeat(padding) { append("    ") }
-		append("}")
-	}
+	fun IrProperty.visit() = multiLineCode(
+		singleLineCode(
+			buildList {
+				val isStatic = when {
+					parent is IrFile -> true
+					(backingField?.isStatic ?: getter?.isStatic ?: setter?.isStatic) == true -> true
+					else -> false
+				}
+				add(visibility.delegate.visit())
+				if (isStatic) {
+					add(plainPlain("static "))
+				}
+				when (modality) {
+					FINAL -> {}
+					SEALED -> add(
+						multiLinePlain(
+							"/*",
+							"TODO sealed",
+							"at IrProperty.visit: ${this@visit}",
+							"*/"
+						)
+					)
 
-	fun IrProperty.visit(padding: Int) = buildString {
-		repeat(padding) { append("    ") }
+					OPEN -> add(plainPlain("virtual "))
+					ABSTRACT -> add(plainPlain("abstract "))
+				}
 
-		when (visibility.delegate) {
-			is Visibilities.Private -> append("private ")
-			is Visibilities.Protected -> append("protected ")
-			is Visibilities.Internal -> append("internal ")
-			is Visibilities.Public -> append("public ")
-		}
+				val type = getter?.returnType
+					?: setter?.returnType
+					?: error("Property must have either getter or setter: $this")
+				add(plainPlain(typeMapper.mapType(type)))
+				add(plainPlain(" "))
 
-		val isStatic = when {
-			parent is IrFile -> true  // 顶级函数总是static
-			(backingField?.isStatic ?: getter?.isStatic ?: setter?.isStatic) == true -> true
-			else -> false             // 默认为普通实例方法
-		}
+				add(plainPlain(name.asString()))
+			}
+		),
+		blockPadding(
+			multiLinePlain(
+				buildList {
+					if (getter != null) {
+						add("get;")
+					}
+					if (setter != null) {
+						add("set;")
+					}
+				}
+			)
+		),
+	)
 
-		if (isStatic) {
-			append("static ")
-		}
-
-		when (modality) {
-			FINAL -> {}
-			SEALED -> TODO()
-			OPEN -> append("virtual ")
-			ABSTRACT -> append("abstract ")
-		}
-
-		val type = getter?.returnType
-			?: setter?.returnType
-			?: error("Property must have either getter or setter: $this")
-		append(typeMapper.mapType(type))
-		append(" ")
-
-		append(name.asString())
-		append(" ")
-
-		append("{ ")
-		if (getter != null) {
-			append("get; ")
-		}
-		if (setter != null) {
-			append("set; ")
-		}
-		append("}")
-	}
-
-	fun IrBody.visit(padding: Int): String? {
-		return statements
+	fun IrBody.visit() = when (this) {
+		is IrBlockBody -> statements
 			.filterNot { it is IrDelegatingConstructorCall }
 			.filterNot { it is IrInstanceInitializerCall }
-			.map {
-				it to when (it) {
-					is IrExpression -> it.visit(padding)
-					is IrVariable -> it.visit(padding)
-					else -> "/* Unsupported statement: ${it::class.java.simpleName} */"
-				}
-			}
-			.filter { it.second != null }
-			.map { it.first to it.second!! }
-			.filter { it.second.isNotEmpty() }
-			.joinToString("\n") {
-				buildString {
-					when (it.first) {
-						is IrWhen -> {}
-						else -> repeat(padding) { append("    ") }
-					}
-
-					append(it.second)
-
-					when (it.first) {
-						is IrWhen -> {}
-						else -> append(";")
-					}
+			.mapNotNull {
+				when (it) {
+					is IrWhen -> it.visit()
+					is IrExpression -> singleLineCode(it.visit(), plainPlain(";"))
+					is IrVariable -> it.visit().appendSingleLine(plainPlain(";"))
+					else -> multiLinePlain(
+						"/*",
+						"Unsupported statement: ${it::class.java.simpleName}",
+						"at IrBody.visit: $this",
+						"is IrBlockBody",
+						"*/",
+					)
 				}
 			}
 			.let {
 				when (it.isEmpty()) {
 					true -> null
-					else -> it
+					else -> blockPadding(it)
+				}
+			}
+
+		else -> statements
+			.filterNot { it is IrDelegatingConstructorCall }
+			.filterNot { it is IrInstanceInitializerCall }
+			.mapNotNull {
+				when (it) {
+					is IrWhen -> it.visit()
+					is IrExpression -> singleLineCode(it.visit(), plainPlain(";"))
+					is IrVariable -> it.visit().appendSingleLine(plainPlain(";"))
+					else -> multiLinePlain(
+						"/*",
+						"Unsupported statement: ${it::class.java.simpleName}",
+						"at IrBody.visit: $this",
+						"*/",
+					)
+				}
+			}
+			.let {
+				when (it.isEmpty()) {
+					true -> null
+					else -> multiLineCode(it)
 				}
 			}
 	}
 
-	fun IrDelegatingConstructorCall.visit(padding: Int): String {
-		return buildString {
-			append("base(")
-			append(
-				valueArguments
-					.filterNotNull()
-					.mapNotNull { it.visit(padding) }
-					.joinToString(", ")
-			)
-			append(")")
-		}
-	}
+	fun IrDelegatingConstructorCall.visit() = singleLineListCode(
+		plainPlain("base("),
+		*valueArguments
+			.filterNotNull()
+			.mapNotNull { it.visit() }
+			.join(plainPlain(", "))
+			.toTypedArray(),
+		plainPlain(")"),
+	)
 
-	fun IrGetObjectValue.visit(padding: Int): String {
-		return buildString {
-			append(typeMapper.mapType(symbol.owner.defaultType))
-			append(".INSTANCE")
-		}
-	}
+	fun IrGetObjectValue.visit() = singleLineListCode(
+		plainPlain(typeMapper.mapType(symbol.owner.defaultType)),
+		plainPlain(".INSTANCE"),
+	)
 
-	fun IrConstructorCall.visit(padding: Int): String {
-		return buildString {
+	fun IrConstructorCall.visit(): CodeNode = singleLineListCode(
+		buildList {
 			val constructedClass = symbol.owner.parent as IrClass
 			val packageFragment = constructedClass.getPackageFragment()
 
-			append("new global::")
+			add(plainPlain("new global::"))
 			if (!packageFragment.packageFqName.isRoot) {
-				append(packageFragment.packageFqName.asString())
-				append(".")
+				add(plainPlain(packageFragment.packageFqName.asString()))
+				add(plainPlain("."))
 			}
-			append(constructedClass.name)
-			append("(")
-			append(
-				valueArguments
-					.filterNotNull()
-					.mapNotNull { it.visit(padding + 1) }
-					.joinToString(", ")
-			)
-			append(")")
+			add(plainPlain(constructedClass.name.asString()))
+			add(plainPlain("("))
+			valueArguments
+				.filterNotNull()
+				.mapNotNull { it.visit() }
+				.join(plainPlain(", "))
+				.forEach { add(it) }
+			add(plainPlain(")"))
 		}
-	}
+	)
 
-	fun IrCall.visit(padding: Int): String {
-		return buildString {
-			val function = symbol.owner
-			val parent = function.parent
+	fun IrCall.visitClassParent(): CodeNode {
+		val function = symbol.owner
+		val parent = function.parent as IrClass
 
-			try {
-				when (parent) {
-					is IrClass -> {
-						val isStatic = function.isStatic
-						val isCompanionStatic = (function as? Fir2IrLazySimpleFunction)?.fir?.annotations?.any {
-							it.annotationTypeRef.coneType.classId == classId("kotlin.clr", "ClrStatic")
-						} == true
+		val isStatic = function.isStatic
+		val isCompanionStatic = (function as? Fir2IrLazySimpleFunction)?.fir?.annotations?.any {
+			it.annotationTypeRef.coneType.classId == classId("kotlin.clr", "ClrStatic")
+		} == true
 
-						when {
-							isStatic -> {
-								append(typeMapper.mapType(parent.defaultType))
-								append(".")
-								if (function.name.isSpecial) {
-									val name = function.name.asString()
-									when {
-										name.startsWith("<set-") -> {
-											append(name.substring("<set-".length, name.length - 1))
-											append(" = ")
-											append(valueArguments[0]!!.visit(padding + 1))
-										}
+		return when {
+			isStatic -> singleLineListCode(
+				buildList {
+					add(plainPlain(typeMapper.mapType(parent.defaultType)))
+					add(plainPlain("."))
+					when (function.name.isSpecial) {
+						true -> {
+							val name = function.name.asString()
 
-										name.startsWith("<get-") -> {
-											append(name.substring("<get-".length, name.length - 1))
-										}
-
-										else -> TODO(name)
-									}
-									return@buildString
-								} else {
-									append(function.name.asString())
+							when {
+								name.startsWith("<set-") -> {
+									add(plainPlain(name.substring("<set-".length, name.length - 1)))
+									add(plainPlain(" = "))
+									add(valueArguments[0]!!.visit())
 								}
-							}
 
-							isCompanionStatic -> {
-								val outer = parent.parent as? IrClass
-									?: throw IllegalStateException("Expected IrClass but got ${parent::class.java}: ${parent.render()}")
-								append(typeMapper.mapType(outer.defaultType))
-								append(".")
-								if (function.name.isSpecial) {
-									val name = function.name.asString()
-									when {
-										name.startsWith("<set-") -> {
-											append(name.substring("<set-".length, name.length - 1))
-											append(" = ")
-											append(valueArguments[0]!!.visit(padding + 1))
-										}
-
-										name.startsWith("<get-") -> {
-											append(name.substring("<get-".length, name.length - 1))
-										}
-
-										else -> TODO(name)
-									}
-									return@buildString
-								} else {
-									append(function.name.asString())
+								name.startsWith("<get-") -> {
+									add(plainPlain(name.substring("<get-".length, name.length - 1)))
 								}
-							}
 
-							else -> {
-								when {
-									function.isOperator -> {
-										when (function.name.asString()) {
-											"plus" -> {
-												append("(")
-												append(arguments[0]!!.visit(padding + 1))
-												append(")")
-												append(" + ")
-												append("(")
-												append(arguments[1]!!.visit(padding + 1))
-												append(")")
-											}
-
-											"times" -> {
-												append("(")
-												append(arguments[0]!!.visit(padding + 1))
-												append(")")
-												append(" * ")
-												append("(")
-												append(arguments[1]!!.visit(padding + 1))
-												append(")")
-											}
-
-											else -> TODO(function.name.asString())
-										}
-										return@buildString
-									}
-
-									else -> {
-										append(dispatchReceiver!!.visit(padding + 1))
-										append(".")
-										if (function.name.isSpecial) {
-											val name = function.name.asString()
-											when {
-												name.startsWith("<set-") -> {
-													append(name.substring("<set-".length, name.length - 1))
-													append(" = ")
-													append(valueArguments[0]!!.visit(padding + 1))
-												}
-
-												name.startsWith("<get-") -> {
-													append(name.substring("<get-".length, name.length - 1))
-												}
-
-												else -> TODO(name)
-											}
-											return@buildString
-										} else {
-											append(function.name.asString())
-										}
-									}
-								}
+								else -> add(
+									multiLinePlain(
+										"/*",
+										"Unsupported name: $name",
+										"at IrCall.visitClassParent: ${this@visitClassParent}",
+										"is static",
+										"is special",
+										"*/",
+									)
+								)
 							}
 						}
 
-						append("(")
-						append(
+						else -> {
+							add(plainPlain(function.name.asString()))
+							add(plainPlain("("))
 							listOfNotNull(extensionReceiver, *valueArguments.toTypedArray())
-								.mapNotNull { it.visit(padding + 1) }
-								.joinToString(", ")
-						)
-						append(")")
+								.mapNotNull { it.visit() }
+								.join(plainPlain(", "))
+								.forEach { add(it) }
+							add(plainPlain(")"))
+						}
 					}
+				}
+			)
 
-					is IrExternalPackageFragment -> {
-						when (parent.packageFqName.asString()) {
-							"kotlin.internal.ir" -> {
-								// 处理特殊的kotlin.internal.ir包中的函数调用
-								when (function.name.asString()) {
-									"greater" -> {
-										append("(")
-										append(valueArguments[0]!!.visit(padding))
-										append(")")
-										append(" > ")
-										append("(")
-										append(valueArguments[1]!!.visit(padding))
-										append(")")
+			isCompanionStatic -> singleLineListCode(
+				buildList {
+					val outer = parent.parent as? IrClass ?: return multiLinePlain(
+						"/*",
+						"Expected IrClass but got ${parent::class.java.simpleName}",
+						"at IrCall.visitClassParent: ${this@visitClassParent}",
+						"is companion static",
+						"*/",
+					)
+					add(plainPlain(typeMapper.mapType(outer.defaultType)))
+					add(plainPlain("."))
+					when (function.name.isSpecial) {
+						true -> {
+							val name = function.name.asString()
+							when {
+								name.startsWith("<set-") -> {
+									add(plainPlain(name.substring("<set-".length, name.length - 1)))
+									add(plainPlain(" = "))
+									add(valueArguments[0]!!.visit())
+								}
+
+								name.startsWith("<get-") -> {
+									add(plainPlain(name.substring("<get-".length, name.length - 1)))
+								}
+
+								else -> add(
+									multiLinePlain(
+										"/*",
+										"Unsupported name: $name",
+										"at IrCall.visitClassParent: ${this@visitClassParent}",
+										"is companion static",
+										"is special",
+										"*/",
+									)
+								)
+							}
+						}
+
+						else -> {
+							add(plainPlain(function.name.asString()))
+							add(plainPlain("("))
+							listOfNotNull(extensionReceiver, *valueArguments.toTypedArray())
+								.mapNotNull { it.visit() }
+								.join(plainPlain(", "))
+								.forEach { add(it) }
+							add(plainPlain(")"))
+						}
+					}
+				}
+			)
+
+			else -> when {
+				function.isOperator -> when (function.name.asString()) {
+					"plus" -> singleLineListCode(
+						plainPlain("("),
+						arguments[0]!!.visit(),
+						plainPlain(")"),
+						plainPlain(" + "),
+						plainPlain("("),
+						arguments[1]!!.visit(),
+						plainPlain(")"),
+					)
+
+					"times" -> singleLineListCode(
+						plainPlain("("),
+						arguments[0]!!.visit(),
+						plainPlain(")"),
+						plainPlain(" * "),
+						plainPlain("("),
+						arguments[1]!!.visit(),
+						plainPlain(")"),
+					)
+
+					else -> multiLinePlain(
+						"/*",
+						"Unsupported name: ${function.name.asString()}",
+						"at IrCall.visitClassParent: $this",
+						"is operator",
+						"*/",
+					)
+				}
+
+				else -> singleLineListCode(
+					buildList {
+						add(dispatchReceiver!!.visit())
+						add(plainPlain("."))
+						when (function.name.isSpecial) {
+							true -> {
+								val name = function.name.asString()
+								when {
+									name.startsWith("<set-") -> {
+										add(plainPlain(name.substring("<set-".length, name.length - 1)))
+										add(plainPlain(" = "))
+										add(valueArguments[0]!!.visit())
 									}
 
-									else -> throw IllegalStateException("Unsupported function in kotlin.internal.ir: ${function.name}")
+									name.startsWith("<get-") -> {
+										add(plainPlain(name.substring("<get-".length, name.length - 1)))
+									}
+
+									else -> add(
+										multiLinePlain(
+											"/*",
+											"Unsupported name: $name",
+											"at IrCall.visitClassParent: ${this@visitClassParent}",
+											"is special",
+											"*/",
+										)
+									)
 								}
 							}
 
 							else -> {
-								throw IllegalStateException("Unexpected external package fragment: ${parent.packageFqName}")
+								add(plainPlain(function.name.asString()))
+								add(plainPlain("("))
+								listOfNotNull(extensionReceiver, *valueArguments.toTypedArray())
+									.mapNotNull { it.visit() }
+									.join(plainPlain(", "))
+									.forEach { add(it) }
+								add(plainPlain(")"))
 							}
 						}
 					}
-
-					else -> {
-						throw IllegalStateException("Unexpected parent declaration: ${parent::class.java}: ${parent.render()}")
-					}
-				}
-			} catch (e: Exception) {
-				append("/* Error processing call: ${e.message} */")
+				)
 			}
 		}
 	}
 
-	fun IrReturn.visit(padding: Int): String {
-		return buildString {
-			append("return ")
-			append(value.visit(padding + 1))
-		}
-	}
+	fun IrCall.visitExternalPackageFragmentParent(): CodeNode {
+		val function = symbol.owner
+		val parent = function.parent as IrExternalPackageFragment
 
-	fun IrVariable.visit(padding: Int): String {
-		return buildString {
-			append(typeMapper.mapType(type))
-			append(" ")
-			append(name.asString())
-			initializer?.let {
-				append(" = ")
-				append(it.visit(padding + 1))
+		return when (parent.packageFqName.asString()) {
+			"kotlin.internal.ir" -> when (function.name.asString()) {
+				"greater" -> singleLineListCode(
+					plainPlain("("),
+					valueArguments[0]!!.visit(),
+					plainPlain(")"),
+					plainPlain(" > "),
+					plainPlain("("),
+					valueArguments[1]!!.visit(),
+					plainPlain(")"),
+				)
+
+				else -> multiLinePlain(
+					"/*",
+					"Unsupported function in kotlin.internal.ir: ${function.name}",
+					"at IrCall.visitExternalPackageFragmentParent: $this",
+					"*/",
+				)
 			}
-		}
-	}
 
-	fun IrSetValue.visit(padding: Int): String {
-		return buildString {
-			append(symbol.visit(padding + 1))
-			append(" = ")
-			append(value.visit(padding + 1))
-		}
-	}
-
-	fun IrWhen.visit(padding: Int): String {
-		return branches
-			.mapNotNull { it.visit(padding) }
-			.joinToString("\n")
-	}
-
-	fun IrBranch.visit(padding: Int): String? {
-		return buildString {
-			repeat(padding) { append("    ") }
-			if (this@visit is IrElseBranch) {
-				append("else ")
-			}
-			append("if (")
-			append(condition.visit(padding))
-			appendLine(") ")
-			append(result.visit(padding))
-		}
-	}
-
-	fun IrBlock.visit(padding: Int): String {
-		return buildString {
-			repeat(padding) { append("    ") }
-			append("{")
-			appendLine()
-			append(
-				statements
-					.mapNotNull { it.visit(padding + 1) }
-					.joinToString("\n") {
-						buildString {
-							repeat(padding + 1) { append("    ") }
-							append(it)
-							append(";")
-						}
-					}
+			else -> multiLinePlain(
+				"/*",
+				"Unexpected external package fragment: ${parent.packageFqName}",
+				"at IrCall.visitExternalPackageFragmentParent: $this",
+				"*/",
 			)
-			appendLine()
-			repeat(padding) { append("    ") }
-			append("}")
 		}
 	}
 
-	fun IrStatement.visit(padding: Int): String? {
-		return when (this) {
-			is IrExpression -> visit(padding)
-			is IrDeclaration -> visit(padding)
-			else -> "/* Unsupported statement: ${this::class.java.simpleName} */"
+	fun IrCall.visit(): CodeNode {
+		val function = symbol.owner
+		val parent = function.parent
+
+		return when (parent) {
+			is IrClass -> visitClassParent()
+			is IrExternalPackageFragment -> visitExternalPackageFragmentParent()
+			else -> multiLinePlain(
+				"/*",
+				"Unexpected parent declaration: ${parent::class.java}: ${parent.render()}",
+				"at IrCall.visit: $this",
+				"*/",
+			)
 		}
 	}
 
-	fun IrExpression.visit(padding: Int): String? {
-		return when (this) {
-			is IrConst -> visit(padding)
-			is IrCall -> visit(padding)
-			is IrStringConcatenation -> visit(padding)
-			is IrGetValue -> visit(padding)
-			is IrConstructorCall -> visit(padding)
-			is IrGetObjectValue -> visit(padding)
-			is IrReturn -> visit(padding)
-			is IrSetValue -> visit(padding)
-			is IrWhen -> visit(padding)
-			is IrBlock -> visit(padding)
-			else -> "/* Unsupported expression: ${this::class.java.simpleName} */"
-		}
-	}
+	fun IrReturn.visit(): CodeNode = singleLineListCode(
+		plainPlain("return "),
+		value.visit(),
+	)
 
-	fun IrConst.visit(padding: Int): String {
-		return when (value) {
-			is String -> "\"$value\""
-			is Number -> value.toString()
-			is Boolean -> value.toString()
-			is Char -> "'$value'"
-			null -> "null"
-			else -> "/* Unsupported constant type: ${(value!!)::class.java.simpleName} */"
-		}
-	}
-
-	fun IrStringConcatenation.visit(padding: Int): String {
-		return arguments
-			.mapNotNull { it.visit(padding + 1) }
-			.joinToString("", "$\"", "\"") { "{($it)}" }
-	}
-
-	fun IrGetValue.visit(padding: Int): String {
-		return symbol.visit(padding + 1)
-	}
-
-	fun IrSymbol.visit(padding: Int): String {
-		return when (this) {
-			is IrVariableSymbol,
-			is IrValueSymbol,
-				-> {
-				val name = owner.name
-				when (name.isSpecial) {
-					true -> when (name.asString()) {
-						"<this>" -> "this"
-						else -> "/* Unsupported special name: $name */"
-					}
-
-					else -> owner.name.asString()
-				}
+	fun IrVariable.visit(): CodeNode = singleLineCode(
+		buildList {
+			add(plainPlain(typeMapper.mapType(type)))
+			add(plainPlain(" "))
+			add(plainPlain(name.asString()))
+			initializer?.let {
+				add(plainPlain(" = "))
+				add(it.visit())
 			}
+		},
+	)
 
-			else -> "/* Unsupported symbol: ${this::class.java.simpleName} */"
+	fun IrSetValue.visit(): CodeNode = singleLineListCode(
+		symbol.visit(),
+		plainPlain(" = "),
+		value.visit(),
+	)
+
+	fun IrWhen.visit(): CodeNode = multiLineListCode(branches.mapNotNull { it.visit() })
+
+	fun IrBranch.visit() = ifPadding(
+		`else` = this is IrElseBranch,
+		condition = condition.visit(),
+		content = result.visit(),
+	)
+
+	fun IrBlock.visit() = blockPadding(statements.mapNotNull { it.visit() })
+
+	fun IrStatement.visit(): CodeNode? = when (this) {
+		is IrWhen -> visit()
+		is IrExpression -> singleLineCode(visit(), plainPlain(";"))
+		is IrDeclaration -> visit()?.appendSingleLine(plainPlain(";"))
+		else -> multiLinePlain(
+			"/*",
+			"Unsupported statement: ${this::class.java.simpleName}",
+			"at IrStatement.visit",
+			"*/",
+		)
+	}
+
+	fun IrExpression.visit() = when (this) {
+		is IrConst -> visit()
+		is IrCall -> visit()
+		is IrStringConcatenation -> visit()
+		is IrGetValue -> visit()
+		is IrConstructorCall -> visit()
+		is IrGetObjectValue -> visit()
+		is IrReturn -> visit()
+		is IrSetValue -> visit()
+		is IrWhen -> visit()
+		is IrBlock -> visit()
+		else -> multiLinePlain(
+			"/*",
+			"Unsupported expression: ${this::class.java.simpleName}",
+			"at IrExpression.visit",
+			"*/",
+		)
+	}
+
+	fun IrConst.visit() = when (value) {
+		is String -> plainPlain("\"$value\"")
+		is Number -> plainPlain(value.toString())
+		is Boolean -> plainPlain(value.toString())
+		is Char -> plainPlain("'$value'")
+		null -> plainPlain("null")
+		else -> multiLinePlain(
+			"/*",
+			"Unsupported constant type: ${(value!!)::class.java.simpleName}",
+			"at IrConst.visit: $this",
+			"*/",
+		)
+	}
+
+	fun IrStringConcatenation.visit(): CodeNode = stringConcatenationCode(arguments.mapNotNull { it.visit() })
+
+	fun IrGetValue.visit() = symbol.visit()
+
+	fun IrSymbol.visit() = when (this) {
+		is IrVariableSymbol,
+		is IrValueSymbol,
+			-> {
+			val name = owner.name
+			when (name.isSpecial) {
+				true -> when (name.asString()) {
+					"<this>" -> plainPlain("this")
+					else -> multiLinePlain(
+						"/*",
+						"Unsupported special name: ${name.asString()}",
+						"at IrSymbol.visit: $this",
+						"is IrValueSymbol",
+						"is special",
+						"*/",
+					)
+				}
+
+				else -> plainPlain(owner.name.asString())
+			}
 		}
+
+		else -> multiLinePlain(
+			"/*",
+			"Unsupported symbol: ${this::class.java.simpleName}",
+			"at IrSymbol.visit",
+			"*/",
+		)
+	}
+
+	fun Visibility.visit() = when (this) {
+		is Visibilities.Private -> plainPlain("private ")
+		is Visibilities.Protected -> plainPlain("protected ")
+		is Visibilities.Internal -> plainPlain("internal ")
+		is Visibilities.Public -> plainPlain("public ")
+		else -> multiLinePlain(
+			"/*",
+			"Unsupported visibility: $this",
+			"at Visibility.visit",
+			"*/",
+		)
+	}
+
+	fun Modality.visit() = when (this) {
+		FINAL -> plainPlain("sealed ")
+		ABSTRACT -> plainPlain("abstract ")
+		SEALED -> multiLinePlain(
+			"/*",
+			"TODO sealed modality",
+			"at Modality.visit",
+			"*/",
+		)
+
+		OPEN -> plainPlain("")
 	}
 }

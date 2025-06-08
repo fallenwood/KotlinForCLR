@@ -1,6 +1,8 @@
 package compiler.clr.backend
 
 import compiler.clr.CLRConfigurationKeys
+import compiler.clr.backend.codegen.render
+import compiler.clr.backend.codegen.visit
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.fir.FirDiagnosticsCompilerResultsReporter
 import org.jetbrains.kotlin.com.intellij.openapi.project.Project
@@ -55,6 +57,11 @@ object KotlinToCSharpCompiler {
 		configuration: CompilerConfiguration
 	) {
 		val map = codegenFactory.invokeCodegen(codegenInput)
+		File(configuration.get(CLRConfigurationKeys.OUTPUT_DIRECTORY)!!, "Code Node.xml").printWriter().use { writer ->
+			map?.values?.forEach {
+				writer.println(it.render())
+			}
+		}
 		FirDiagnosticsCompilerResultsReporter.reportToMessageCollector(
 			diagnosticsReporter,
 			configuration.getNotNull(CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY),
@@ -62,9 +69,9 @@ object KotlinToCSharpCompiler {
 		)
 		val destination = configuration.get(CLRConfigurationKeys.OUTPUT_DIRECTORY)!!
 		map?.let { map ->
-			for ((irFile, content) in map) {
+			for ((irFile, node) in map) {
 				FileWriter(File(destination, irFile.name + ".cs")).use {
-					it.write(content)
+					it.write(node.visit())
 				}
 			}
 		}

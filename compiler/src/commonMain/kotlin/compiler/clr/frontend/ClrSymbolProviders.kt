@@ -235,7 +235,7 @@ class ClrSymbolProvider(
 		classPackages.getOrPut(
 			key = node.namespace ?: "",
 			defaultValue = { mutableListOf() }
-		)+= classSymbol.classId
+		) += classSymbol.classId
 		classSymbols[classSymbol.classId] = classSymbol
 	}
 

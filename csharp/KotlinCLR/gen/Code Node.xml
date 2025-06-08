@@ -1,0 +1,66 @@
+<CodeNode.MultiLine>
+    <CodeNode.SingleLine>
+        <PlainNode.Plain>public </PlainNode.Plain>
+        <PlainNode.Plain>sealed </PlainNode.Plain>
+        <PlainNode.Plain>class </PlainNode.Plain>
+        <PlainNode.Plain>MainKt</PlainNode.Plain>
+        <PlainNode.Plain> : </PlainNode.Plain>
+        <PlainNode.Plain>global::System.Object</PlainNode.Plain>
+    </CodeNode.SingleLine>
+    <PaddingNode.Block>
+        <CodeNode.MultiLine>
+            <CodeNode.SingleLine>
+                <PlainNode.Plain>public </PlainNode.Plain>
+                <PlainNode.Plain>static </PlainNode.Plain>
+                <PlainNode.Plain>global::System.Int32 </PlainNode.Plain>
+                <PlainNode.Plain>maxOf(</PlainNode.Plain>
+                <PlainNode.Plain>global::System.Int32 a, global::System.Int32 b</PlainNode.Plain>
+                <PlainNode.Plain>)</PlainNode.Plain>
+            </CodeNode.SingleLine>
+            <PaddingNode.Block>
+                <CodeNode.MultiLineList>
+                    <PaddingNode.If else="false">
+                        <condition>
+                            <CodeNode.CodeList>
+                                <PlainNode.Plain>(</PlainNode.Plain>
+                                <PlainNode.Plain>a</PlainNode.Plain>
+                                <PlainNode.Plain>)</PlainNode.Plain>
+                                <PlainNode.Plain> > </PlainNode.Plain>
+                                <PlainNode.Plain>(</PlainNode.Plain>
+                                <PlainNode.Plain>b</PlainNode.Plain>
+                                <PlainNode.Plain>)</PlainNode.Plain>
+                            </CodeNode.CodeList>
+                        </condition>
+                        <content>
+                            <PaddingNode.Block>
+                                <CodeNode.SingleLine>
+                                    <CodeNode.CodeList>
+                                        <PlainNode.Plain>return </PlainNode.Plain>
+                                        <PlainNode.Plain>a</PlainNode.Plain>
+                                    </CodeNode.CodeList>
+                                    <PlainNode.Plain>;</PlainNode.Plain>
+                                </CodeNode.SingleLine>
+                            </PaddingNode.Block>
+                        </content>
+                    </PaddingNode.If>
+                    <PaddingNode.If else="true">
+                        <condition>
+                            <PlainNode.Plain>true</PlainNode.Plain>
+                        </condition>
+                        <content>
+                            <PaddingNode.Block>
+                                <CodeNode.SingleLine>
+                                    <CodeNode.CodeList>
+                                        <PlainNode.Plain>return </PlainNode.Plain>
+                                        <PlainNode.Plain>b</PlainNode.Plain>
+                                    </CodeNode.CodeList>
+                                    <PlainNode.Plain>;</PlainNode.Plain>
+                                </CodeNode.SingleLine>
+                            </PaddingNode.Block>
+                        </content>
+                    </PaddingNode.If>
+                </CodeNode.MultiLineList>
+            </PaddingNode.Block>
+        </CodeNode.MultiLine>
+    </PaddingNode.Block>
+</CodeNode.MultiLine>

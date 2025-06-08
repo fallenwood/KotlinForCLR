@@ -1,6 +1,7 @@
 package compiler.clr.backend
 
 import compiler.clr.backend.codegen.ClassCodegen
+import compiler.clr.backend.codegen.CodeNode
 import org.jetbrains.kotlin.backend.common.ir.isBytecodeGenerationSuppressed
 import org.jetbrains.kotlin.config.phaseConfig
 import org.jetbrains.kotlin.config.phaser.PhaseConfig
@@ -52,7 +53,7 @@ class CSharpCodegenFactory {
 		return CodegenInput(state, context, irModuleFragment, allBuiltins)
 	}
 
-	fun invokeCodegen(input: CodegenInput): Map<IrFile, String>? {
+	fun invokeCodegen(input: CodegenInput): Map<IrFile, CodeNode>? {
 		val (state, context, module, _) = input
 
 		fun hasErrors() = (state.diagnosticReporter as? BaseDiagnosticsCollector)?.hasErrors == true
