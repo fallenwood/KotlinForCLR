@@ -1,11 +1,12 @@
 <CodeNode.MultiLine>
+    <PlainNode.SingleLine>
+        <PlainNode.Plain>[global::kotlin.clr.KotlinFileClass]</PlainNode.Plain>
+    </PlainNode.SingleLine>
     <CodeNode.SingleLine>
         <PlainNode.Plain>public </PlainNode.Plain>
-        <PlainNode.Plain>sealed </PlainNode.Plain>
+        <PlainNode.Plain>static </PlainNode.Plain>
         <PlainNode.Plain>class </PlainNode.Plain>
         <PlainNode.Plain>MainKt</PlainNode.Plain>
-        <PlainNode.Plain> : </PlainNode.Plain>
-        <PlainNode.Plain>global::System.Object</PlainNode.Plain>
     </CodeNode.SingleLine>
     <PaddingNode.Block>
         <CodeNode.MultiLine>

@@ -36,17 +36,15 @@ import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProviderInternals
 import org.jetbrains.kotlin.fir.scopes.FirKotlinScopeProvider
 import org.jetbrains.kotlin.fir.scopes.kotlinScopeProvider
+import org.jetbrains.kotlin.fir.symbols.ConeTypeParameterLookupTag
 import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.*
-import org.jetbrains.kotlin.fir.types.ConeTypeProjection
-import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
+import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
-import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
-import org.jetbrains.kotlin.fir.types.impl.FirImplicitNullableAnyTypeRef
-import org.jetbrains.kotlin.fir.types.toLookupTag
 import org.jetbrains.kotlin.javac.resolve.classId
 import org.jetbrains.kotlin.name.*
+import org.jetbrains.kotlin.types.Variance
 
 class ClrSymbolNamesProvider : FirSymbolNamesProvider() {
 	private val packageNames = mutableSetOf<FqName>()
@@ -117,8 +115,8 @@ class ClrSymbolProvider(
 			}
 
 			declarations += when {
-				node.attributes.any { it == "kotlin.clr.KotlinObject" } -> buildObject(node).fir
-				node.attributes.any { it == "kotlin.clr.KotlinFileClass" } -> buildFileClass(node).fir
+				node.attributes.any { it.match("kotlin.clr", "KotlinObject") } -> buildObject(node).fir
+				node.attributes.any { it.match("kotlin.clr", "KotlinFileClass") } -> buildFileClass(node).fir
 				else -> buildClass(node).fir
 			}
 			name = node.name
@@ -294,10 +292,7 @@ class ClrSymbolProvider(
 				Modality.FINAL,
 				EffectiveVisibility.Public
 			)
-			returnTypeRef = when (node.returnType != null) {
-				true -> resolveFirTypeRefForClr(node.returnType, true)
-				else -> FirImplicitNullableAnyTypeRef(null)
-			}
+			returnTypeRef = resolveFirTypeRefForClr(node.returnType.fullName, true)
 
 			dispatchReceiverType = ConeClassLikeTypeImpl(
 				lookupTag = classId.toLookupTag(),
@@ -306,8 +301,7 @@ class ClrSymbolProvider(
 			)
 
 			val isExtension = node.attributes
-				.filterNotNull()
-				.any { it == "kotlin.clr.KotlinExtension" }
+				.any { it.match("kotlin.clr", "KotlinExtension") }
 			valueParameters += node.parameters
 				.drop(
 					when (isExtension) {
@@ -331,6 +325,8 @@ class ClrSymbolProvider(
 			}
 			name = Name.identifier(node.name)
 			symbol = functionSymbol
+			typeParameters += node.genericArguments
+				.map { buildTypeParameter(it, functionSymbol).fir }
 		}
 		clrSymbolNamesProvider.registerCallableName(functionSymbol.packageFqName(), functionSymbol.name)
 		functionPackages.getOrPut(
@@ -354,10 +350,7 @@ class ClrSymbolProvider(
 				Modality.FINAL,
 				EffectiveVisibility.Public
 			)
-			returnTypeRef = when (node.returnType != null) {
-				true -> resolveFirTypeRefForClr(node.returnType, true)
-				else -> FirImplicitNullableAnyTypeRef(null)
-			}
+			returnTypeRef = resolveFirTypeRefForClr(node.returnType.fullName, true)
 
 			valueParameters += node.parameters.map { buildValueParameter(it, functionSymbol).fir }
 			name = Name.identifier(node.name)
@@ -374,6 +367,8 @@ class ClrSymbolProvider(
 					argumentMapping = FirEmptyAnnotationArgumentMapping
 				}
 			}
+			typeParameters += node.genericArguments
+				.map { buildTypeParameter(it, functionSymbol).fir }
 		}
 	}
 
@@ -384,16 +379,28 @@ class ClrSymbolProvider(
 			buildValueParameter {
 				moduleData = firModuleData
 				origin = FirDeclarationOrigin.Library
-				returnTypeRef = when (node.type != null) {
-					true -> resolveFirTypeRefForClr(node.type, true)
-					else -> FirImplicitNullableAnyTypeRef(null)
-				}
+				returnTypeRef = resolveFirTypeRefForClr(node.type.fullName, true)
 				name = parameterSymbol.callableId.callableName
 				symbol = parameterSymbol
 				if (node.hasDefaultValue) {
 					defaultValue = FirStub
 				}
 				containingDeclarationSymbol = containingSymbol
+				isVararg = node.attributes
+					.any { it.match("kotlin.clr", "KotlinVararg") }
+			}
+		}
+
+	private fun buildTypeParameter(identifier: String, containingSymbol: FirFunctionSymbol<*>) =
+		FirTypeParameterSymbol().also { parameterSymbol ->
+			buildTypeParameter {
+				moduleData = firModuleData
+				origin = FirDeclarationOrigin.Library
+				name = Name.identifier(identifier)
+				symbol = parameterSymbol
+				containingDeclarationSymbol = containingSymbol
+				variance = Variance.INVARIANT
+				isReified = true
 			}
 		}
 
@@ -559,7 +566,7 @@ class ClrBuiltinsSymbolProvider(
 ) : FirSymbolProvider(session) {
 	private val stdlibSymbolProvider = ClrSymbolProvider(session, assemblies, moduleData)
 
-	private val annotationSymbol = StandardClassIds.Annotation.buildSymbol(moduleData) { classId ->
+	private val annotationSymbol = StandardClassIds.Annotation.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -567,7 +574,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.INTERFACE
 	}
-	private val anySymbol = StandardClassIds.Any.buildSymbol(moduleData) { classId ->
+	private val anySymbol = StandardClassIds.Any.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -703,7 +710,7 @@ class ClrBuiltinsSymbolProvider(
 			}
 		}.fir
 	}
-	private val arraySymbol = StandardClassIds.Array.buildSymbol(moduleData) { classId ->
+	private val arraySymbol = StandardClassIds.Array.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -711,7 +718,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val byteArraySymbol = classId("kotlin", "ByteArray").buildSymbol(moduleData) { classId ->
+	private val byteArraySymbol = classId("kotlin", "ByteArray").buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -719,7 +726,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val charArraySymbol = classId("kotlin", "CharArray").buildSymbol(moduleData) { classId ->
+	private val charArraySymbol = classId("kotlin", "CharArray").buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -727,7 +734,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val shortArraySymbol = classId("kotlin", "ShortArray").buildSymbol(moduleData) { classId ->
+	private val shortArraySymbol = classId("kotlin", "ShortArray").buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -735,7 +742,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val intArraySymbol = classId("kotlin", "IntArray").buildSymbol(moduleData) { classId ->
+	private val intArraySymbol = classId("kotlin", "IntArray").buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -743,7 +750,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val longArraySymbol = classId("kotlin", "LongArray").buildSymbol(moduleData) { classId ->
+	private val longArraySymbol = classId("kotlin", "LongArray").buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -751,7 +758,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val floatArraySymbol = classId("kotlin", "FloatArray").buildSymbol(moduleData) { classId ->
+	private val floatArraySymbol = classId("kotlin", "FloatArray").buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -759,7 +766,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val doubleArraySymbol = classId("kotlin", "DoubleArray").buildSymbol(moduleData) { classId ->
+	private val doubleArraySymbol = classId("kotlin", "DoubleArray").buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -767,7 +774,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val booleanArraySymbol = classId("kotlin", "BooleanArray").buildSymbol(moduleData) { classId ->
+	private val booleanArraySymbol = classId("kotlin", "BooleanArray").buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -775,7 +782,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val booleanSymbol = StandardClassIds.Boolean.buildSymbol(moduleData) { classId ->
+	private val booleanSymbol = StandardClassIds.Boolean.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -783,7 +790,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val charSymbol = StandardClassIds.Char.buildSymbol(moduleData) { classId ->
+	private val charSymbol = StandardClassIds.Char.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -791,7 +798,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val charSequenceSymbol = StandardClassIds.CharSequence.buildSymbol(moduleData) { classId ->
+	private val charSequenceSymbol = StandardClassIds.CharSequence.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -799,7 +806,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.INTERFACE
 	}
-	private val comparableSymbol = StandardClassIds.Comparable.buildSymbol(moduleData) { classId ->
+	private val comparableSymbol = StandardClassIds.Comparable.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -807,7 +814,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.INTERFACE
 	}
-	private val enumSymbol = StandardClassIds.Enum.buildSymbol(moduleData) { classId ->
+	private val enumSymbol = StandardClassIds.Enum.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.ABSTRACT,
@@ -815,7 +822,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val nothingSymbol = StandardClassIds.Nothing.buildSymbol(moduleData) { classId ->
+	private val nothingSymbol = StandardClassIds.Nothing.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -846,7 +853,7 @@ class ClrBuiltinsSymbolProvider(
 			}
 		}.fir
 	}
-	private val numberSymbol = StandardClassIds.Number.buildSymbol(moduleData) { classId ->
+	private val numberSymbol = StandardClassIds.Number.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.ABSTRACT,
@@ -854,7 +861,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val byteSymbol = StandardClassIds.Byte.buildSymbol(moduleData) { classId ->
+	private val byteSymbol = StandardClassIds.Byte.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -862,7 +869,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val shortSymbol = StandardClassIds.Short.buildSymbol(moduleData) { classId ->
+	private val shortSymbol = StandardClassIds.Short.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -870,7 +877,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val intSymbol = StandardClassIds.Int.buildSymbol(moduleData) { classId ->
+	private val intSymbol = StandardClassIds.Int.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -974,7 +981,7 @@ class ClrBuiltinsSymbolProvider(
 			}
 		}.fir
 	}
-	private val longSymbol = StandardClassIds.Long.buildSymbol(moduleData) { classId ->
+	private val longSymbol = StandardClassIds.Long.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -982,7 +989,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val floatSymbol = StandardClassIds.Float.buildSymbol(moduleData) { classId ->
+	private val floatSymbol = StandardClassIds.Float.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -990,7 +997,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val doubleSymbol = StandardClassIds.Double.buildSymbol(moduleData) { classId ->
+	private val doubleSymbol = StandardClassIds.Double.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -1094,7 +1101,7 @@ class ClrBuiltinsSymbolProvider(
 			}
 		}.fir
 	}
-	private val stringSymbol = StandardClassIds.String.buildSymbol(moduleData) { classId ->
+	private val stringSymbol = StandardClassIds.String.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.FINAL,
@@ -1102,7 +1109,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.CLASS
 	}
-	private val throwableSymbol = StandardClassIds.Throwable.buildSymbol(moduleData) { classId ->
+	private val throwableSymbol = StandardClassIds.Throwable.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -1111,7 +1118,7 @@ class ClrBuiltinsSymbolProvider(
 		classKind = ClassKind.CLASS
 	}
 
-	private val iterableSymbol = StandardClassIds.Iterable.buildSymbol(moduleData) { classId ->
+	private val iterableSymbol = StandardClassIds.Iterable.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -1119,7 +1126,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.INTERFACE
 	}
-	private val mutableIterableSymbol = StandardClassIds.MutableIterable.buildSymbol(moduleData) { classId ->
+	private val mutableIterableSymbol = StandardClassIds.MutableIterable.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -1127,7 +1134,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.INTERFACE
 	}
-	private val collectionSymbol = StandardClassIds.Collection.buildSymbol(moduleData) { classId ->
+	private val collectionSymbol = StandardClassIds.Collection.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -1135,7 +1142,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.INTERFACE
 	}
-	private val mutableCollectionSymbol = StandardClassIds.MutableCollection.buildSymbol(moduleData) { classId ->
+	private val mutableCollectionSymbol = StandardClassIds.MutableCollection.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -1143,7 +1150,69 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.INTERFACE
 	}
-	private val listSymbol = StandardClassIds.List.buildSymbol(moduleData) { classId ->
+	private val listSymbol = StandardClassIds.List.buildSymbol(moduleData) { classId, _, classSymbol ->
+		status = FirResolvedDeclarationStatusImpl(
+			Visibilities.Public,
+			Modality.OPEN,
+			EffectiveVisibility.Public
+		)
+		classKind = ClassKind.INTERFACE
+		val typeParameter = FirTypeParameterSymbol().also { typeParameterSymbol ->
+			buildTypeParameter {
+				this.moduleData = moduleData
+				origin = FirDeclarationOrigin.BuiltIns
+				name = Name.identifier("E")
+				symbol = typeParameterSymbol
+				containingDeclarationSymbol = classSymbol
+				variance = Variance.OUT_VARIANCE
+				isReified = true
+			}
+		}
+		typeParameters += typeParameter.fir
+		declarations += FirNamedFunctionSymbol(
+			callableId = CallableId(classId, Name.identifier("iterator"))
+		).also { functionSymbol ->
+			buildSimpleFunction {
+				this.moduleData = moduleData
+				origin = FirDeclarationOrigin.BuiltIns
+				status = FirDeclarationStatusImpl(
+					Visibilities.Public,
+					Modality.OPEN
+				).apply {
+//					isOverride = true
+				}.resolved(
+					Visibilities.Public,
+					Modality.FINAL,
+					EffectiveVisibility.Public
+				)
+				returnTypeRef = buildResolvedTypeRef {
+					coneType = ConeClassLikeTypeImpl(
+						StandardClassIds.Iterator.toLookupTag(),
+						arrayOf(
+							ConeKotlinTypeProjectionOut(
+								ConeTypeVariableType(
+									false,
+									ConeTypeVariableTypeConstructor(
+										"E",
+										ConeTypeParameterLookupTag(typeParameter)
+									)
+								)
+							)
+						),
+						false
+					)
+				}
+				dispatchReceiverType = ConeClassLikeTypeImpl(
+					classId.toLookupTag(),
+					emptyArray(),
+					false
+				)
+				name = functionSymbol.callableId.callableName
+				symbol = functionSymbol
+			}
+		}.fir
+	}
+	private val mutableListSymbol = StandardClassIds.MutableList.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -1151,7 +1220,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.INTERFACE
 	}
-	private val mutableListSymbol = StandardClassIds.MutableList.buildSymbol(moduleData) { classId ->
+	private val setSymbol = StandardClassIds.Set.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -1159,7 +1228,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.INTERFACE
 	}
-	private val setSymbol = StandardClassIds.Set.buildSymbol(moduleData) { classId ->
+	private val mutableSetSymbol = StandardClassIds.MutableSet.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -1167,7 +1236,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.INTERFACE
 	}
-	private val mutableSetSymbol = StandardClassIds.MutableSet.buildSymbol(moduleData) { classId ->
+	private val mapSymbol = StandardClassIds.Map.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -1175,7 +1244,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.INTERFACE
 	}
-	private val mapSymbol = StandardClassIds.Map.buildSymbol(moduleData) { classId ->
+	private val mutableMapSymbol = StandardClassIds.MutableMap.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -1183,7 +1252,93 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.INTERFACE
 	}
-	private val mutableMapSymbol = StandardClassIds.MutableMap.buildSymbol(moduleData) { classId ->
+	private val iteratorSymbol = StandardClassIds.Iterator.buildSymbol(moduleData) { classId, _, classSymbol ->
+		status = FirResolvedDeclarationStatusImpl(
+			Visibilities.Public,
+			Modality.OPEN,
+			EffectiveVisibility.Public
+		)
+		classKind = ClassKind.INTERFACE
+		val typeParameter = FirTypeParameterSymbol().also { typeParameterSymbol ->
+			buildTypeParameter {
+				this.moduleData = moduleData
+				origin = FirDeclarationOrigin.BuiltIns
+				name = Name.identifier("T")
+				symbol = typeParameterSymbol
+				containingDeclarationSymbol = classSymbol
+				variance = Variance.OUT_VARIANCE
+				isReified = true
+			}
+		}
+		typeParameters += typeParameter.fir
+		declarations += FirNamedFunctionSymbol(
+			CallableId(classId, Name.identifier("next"))
+		).also { functionSymbol ->
+			buildSimpleFunction {
+				this.moduleData = moduleData
+				origin = FirDeclarationOrigin.BuiltIns
+				status = FirDeclarationStatusImpl(
+					Visibilities.Public,
+					Modality.FINAL
+				).apply {
+					isOperator = true
+				}.resolved(
+					Visibilities.Public,
+					Modality.FINAL,
+					EffectiveVisibility.Public
+				)
+				returnTypeRef = buildResolvedTypeRef {
+					coneType = ConeTypeVariableType(
+						false,
+						ConeTypeVariableTypeConstructor(
+							"T",
+							ConeTypeParameterLookupTag(typeParameter)
+						)
+					)
+				}
+				dispatchReceiverType = ConeClassLikeTypeImpl(
+					classId.toLookupTag(),
+					emptyArray(),
+					false
+				)
+				name = functionSymbol.callableId.callableName
+				symbol = functionSymbol
+			}
+		}.fir
+		declarations += FirNamedFunctionSymbol(
+			CallableId(classId, Name.identifier("hasNext"))
+		).also { functionSymbol ->
+			buildSimpleFunction {
+				this.moduleData = moduleData
+				origin = FirDeclarationOrigin.BuiltIns
+				status = FirDeclarationStatusImpl(
+					Visibilities.Public,
+					Modality.FINAL
+				).apply {
+					isOperator = true
+				}.resolved(
+					Visibilities.Public,
+					Modality.FINAL,
+					EffectiveVisibility.Public
+				)
+				returnTypeRef = buildResolvedTypeRef {
+					coneType = ConeClassLikeTypeImpl(
+						StandardClassIds.Boolean.toLookupTag(),
+						emptyArray(),
+						false
+					)
+				}
+				dispatchReceiverType = ConeClassLikeTypeImpl(
+					classId.toLookupTag(),
+					emptyArray(),
+					false
+				)
+				name = functionSymbol.callableId.callableName
+				symbol = functionSymbol
+			}
+		}.fir
+	}
+	private val mutableIteratorSymbol = StandardClassIds.MutableIterator.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -1191,7 +1346,7 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.INTERFACE
 	}
-	private val iteratorSymbol = StandardClassIds.Iterator.buildSymbol(moduleData) { classId ->
+	private val listIteratorSymbol = StandardClassIds.ListIterator.buildSymbol(moduleData) { classId, _, _ ->
 		status = FirResolvedDeclarationStatusImpl(
 			Visibilities.Public,
 			Modality.OPEN,
@@ -1199,30 +1354,15 @@ class ClrBuiltinsSymbolProvider(
 		)
 		classKind = ClassKind.INTERFACE
 	}
-	private val mutableIteratorSymbol = StandardClassIds.MutableIterator.buildSymbol(moduleData) { classId ->
-		status = FirResolvedDeclarationStatusImpl(
-			Visibilities.Public,
-			Modality.OPEN,
-			EffectiveVisibility.Public
-		)
-		classKind = ClassKind.INTERFACE
-	}
-	private val listIteratorSymbol = StandardClassIds.ListIterator.buildSymbol(moduleData) { classId ->
-		status = FirResolvedDeclarationStatusImpl(
-			Visibilities.Public,
-			Modality.OPEN,
-			EffectiveVisibility.Public
-		)
-		classKind = ClassKind.INTERFACE
-	}
-	private val mutableListIteratorSymbol = StandardClassIds.MutableListIterator.buildSymbol(moduleData) { classId ->
-		status = FirResolvedDeclarationStatusImpl(
-			Visibilities.Public,
-			Modality.OPEN,
-			EffectiveVisibility.Public
-		)
-		classKind = ClassKind.INTERFACE
-	}
+	private val mutableListIteratorSymbol =
+		StandardClassIds.MutableListIterator.buildSymbol(moduleData) { classId, _, _ ->
+			status = FirResolvedDeclarationStatusImpl(
+				Visibilities.Public,
+				Modality.OPEN,
+				EffectiveVisibility.Public
+			)
+			classKind = ClassKind.INTERFACE
+		}
 
 	@OptIn(FirImplementationDetail::class)
 	private val builtinsClassSymbols = listOf(
@@ -1271,7 +1411,7 @@ class ClrBuiltinsSymbolProvider(
 
 	private fun ClassId.buildSymbol(
 		moduleData: FirModuleData,
-		build: FirRegularClassBuilder.(ClassId) -> Unit,
+		build: FirRegularClassBuilder.(ClassId, FirFileSymbol, FirRegularClassSymbol) -> Unit,
 	): FirRegularClassSymbol {
 		val returnSymbol: FirRegularClassSymbol
 		FirFileSymbol().let { fileSymbol ->
@@ -1289,7 +1429,7 @@ class ClrBuiltinsSymbolProvider(
 						origin = FirDeclarationOrigin.BuiltIns
 						name = classId.shortClassName
 						scopeProvider = session.kotlinScopeProvider
-						build(this@buildSymbol)
+						build(this@buildSymbol, fileSymbol, classSymbol)
 						symbol = classSymbol
 					}
 				}.fir

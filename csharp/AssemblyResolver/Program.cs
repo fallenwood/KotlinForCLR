@@ -42,9 +42,9 @@ public record NodeAssembly(
 public record NodeType(
 	string name,
 	string? @namespace,
-	string? baseType,
-	List<string?> interfaces,
-	List<string?> attributes,
+	NodeTypeReference? baseType,
+	List<NodeTypeReference> interfaces,
+	List<NodeTypeReference> attributes,
 	List<NodeConstructor> constructors,
 	List<NodeEvent> events,
 	List<NodeField> fields,
@@ -77,9 +77,9 @@ public record NodeType(
 	public static NodeType from(Type type) => new(
 		name: type.Name,
 		@namespace: type.Namespace,
-		baseType: type.BaseType?.FullName,
-		interfaces: type.GetInterfaces().Select(it => it.FullName).ToList(),
-		attributes: type.GetCustomAttributes().Select(it => it.GetType().FullName).ToList(),
+		baseType: type.BaseType?.let(NodeTypeReference.from),
+		interfaces: type.GetInterfaces().Select(NodeTypeReference.from).ToList(),
+		attributes: type.GetCustomAttributes().Select(it => NodeTypeReference.from(it.GetType())).ToList(),
 		constructors: type.GetConstructors().Select(NodeConstructor.from).ToList(),
 		events: type.GetEvents().Select(NodeEvent.from).ToList(),
 		fields: type.GetFields().Select(NodeField.from).ToList(),
@@ -149,9 +149,9 @@ public record NodeField(
 
 public record NodeMethod(
 	string name,
-	string? returnType,
-	List<string?> attributes,
-	List<string?> genericArguments,
+	NodeTypeReference returnType,
+	List<NodeTypeReference> attributes,
+	List<string> genericArguments,
 	List<NodeParameter> parameters,
 	bool isAbstract,
 	bool isAssembly,
@@ -164,9 +164,9 @@ public record NodeMethod(
 ) {
 	public static NodeMethod from(MethodInfo method) => new(
 		name: method.Name,
-		returnType: method.ReturnType.FullName,
-		attributes: method.GetCustomAttributes().Select(it => it.GetType().FullName).ToList(),
-		genericArguments: method.GetGenericArguments().Select(it => it.FullName).ToList(),
+		returnType: NodeTypeReference.from(method.ReturnType),
+		attributes: method.GetCustomAttributes().Select(it => NodeTypeReference.from(it.GetType())).ToList(),
+		genericArguments: method.GetGenericArguments().Select(it => it.Name).ToList(),
 		parameters: method.GetParameters().Select(NodeParameter.from).ToList(),
 		isAbstract: method.IsAbstract,
 		isAssembly: method.IsAssembly,
@@ -187,15 +187,31 @@ public record NodeProperty(
 
 public record NodeParameter(
 	string? name,
-	string? type,
+	NodeTypeReference type,
+	List<NodeTypeReference> attributes,
 	bool hasDefaultValue,
 	int position
 ) {
 	public static NodeParameter from(ParameterInfo parameter) => new(
 		name: parameter.Name,
-		type: parameter.ParameterType.FullName,
+		type: NodeTypeReference.from(parameter.ParameterType),
+		attributes: parameter.GetCustomAttributes().Select(it => NodeTypeReference.from(it.GetType())).ToList(),
 		hasDefaultValue: parameter.HasDefaultValue,
 		position: parameter.Position
+	);
+}
+
+public record NodeTypeReference(
+	string? @namespace,
+	string name,
+	List<NodeTypeReference>? typeParameters
+) {
+	public static NodeTypeReference from(Type type) => new(
+		@namespace: type.Namespace,
+		name: type.Name,
+		typeParameters: type.IsGenericType
+			? type.GetGenericArguments().Select(from).ToList()
+			: null
 	);
 }
 

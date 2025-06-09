@@ -12,3 +12,4 @@ build/
 /csharp/kotlin-stdlib/obj/
 /csharp/KotlinCLR/bin/
 /csharp/KotlinCLR/obj/
+/csharp/KotlinCLR.sln.DotSettings.user

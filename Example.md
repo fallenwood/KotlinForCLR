@@ -16,7 +16,8 @@ fun main() {
 ```
 
 ```c#
-public sealed class MainKt : global::System.Object
+[global::kotlin.clr.KotlinFileClass]
+public static class MainKt
 {
     public static void main()
     {
@@ -46,7 +47,8 @@ fun sum(a: Int, b: Int): Int {
 ```
 
 ```c#
-public sealed class MainKt : global::System.Object
+[global::kotlin.clr.KotlinFileClass]
+public static class MainKt
 {
     public static void main()
     {
@@ -72,7 +74,8 @@ fun printSum(a: Int, b: Int): Unit {
 ```
 
 ```c#
-public sealed class MainKt : global::System.Object
+[global::kotlin.clr.KotlinFileClass]
+public static class MainKt
 {
     public static void printSum(global::System.Int32 a, global::System.Int32 b)
     {
@@ -99,7 +102,8 @@ fun main() {
 ```
 
 ```c#
-public sealed class MainKt : global::System.Object
+[global::kotlin.clr.KotlinFileClass]
+public static class MainKt
 {
     public static global::System.Double PI
     {
@@ -191,7 +195,8 @@ fun main() {
 ```
 
 ```c#
-public sealed class MainKt : global::System.Object
+[global::kotlin.clr.KotlinFileClass]
+public static class MainKt
 {
     public static void main()
     {
@@ -221,7 +226,8 @@ fun maxOf(a: Int, b: Int): Int {
 ```
 
 ```c#
-public sealed class MainKt : global::System.Object
+[global::kotlin.clr.KotlinFileClass]
+public static class MainKt
 {
     public static global::System.Int32 maxOf(global::System.Int32 a, global::System.Int32 b)
     {
@@ -242,7 +248,8 @@ fun maxOf(a: Int, b: Int) = if (a > b) a else b
 ```
 
 ```c#
-public sealed class MainKt : global::System.Object
+[global::kotlin.clr.KotlinFileClass]
+public static class MainKt
 {
     public static global::System.Int32 maxOf(global::System.Int32 a, global::System.Int32 b)
     {

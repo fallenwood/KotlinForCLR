@@ -120,9 +120,11 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 					"System.Threading",
 					"System.Threading.Tasks",
 				).forEach { pack ->
-					if (!it.imports.any { import ->
-						import.importedFqName?.asString() == pack
-					}) {
+					if (
+						!it.imports.any { import ->
+							import.importedFqName?.asString() == pack
+						}
+					) {
 						(it.imports as MutableList) += buildImport {
 							importedFqName = FqName(pack)
 							isAllUnder = true
@@ -130,16 +132,21 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 					}
 				}
 			}
+			File(input.configuration.get(CLRConfigurationKeys.OUTPUT_DIRECTORY)!!, "Raw Front IR.txt").printWriter()
+				.use { writer ->
+					rawFirFiles.forEach { fir ->
+						writer.println(FirRenderer().renderElementAsString(fir))
+					}
+				}
 			resolveAndCheckFir(session, rawFirFiles, diagnosticsCollector)
 		}
 
 		val firResult = FirResult(outputs)
-		val renderer = FirRenderer()
 		File(input.configuration.get(CLRConfigurationKeys.OUTPUT_DIRECTORY)!!, "Front IR.txt").printWriter()
 			.use { writer ->
 				firResult.outputs.forEach { output ->
 					output.fir.forEach { fir ->
-						writer.println(renderer.renderElementAsString(fir))
+						writer.println(FirRenderer().renderElementAsString(fir))
 					}
 				}
 			}
@@ -341,7 +348,7 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 					configuration.languageVersionSettings,
 				)
 			},
-			createSourceSession =  { moduleFiles, moduleData, sessionProvider, sessionConfigurator ->
+			createSourceSession = { moduleFiles, moduleData, sessionProvider, sessionConfigurator ->
 				FirClrSessionFactory.createModuleBasedSession(
 					moduleData,
 					sessionProvider,

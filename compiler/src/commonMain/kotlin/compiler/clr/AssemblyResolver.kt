@@ -48,9 +48,9 @@ data class NodeAssembly(
 data class NodeType(
 	val name: String,
 	val namespace: String?,
-	val baseType: String?,
-	val interfaces: List<String?>,
-	val attributes: List<String?>,
+	val baseType: NodeTypeReference?,
+	val interfaces: List<NodeTypeReference>,
+	val attributes: List<NodeTypeReference>,
 	val constructors: List<NodeConstructor>,
 	val events: List<NodeEvent>,
 	val fields: List<NodeField>,
@@ -103,9 +103,9 @@ data object NodeField : AssemblyNode()
 @Serializable
 data class NodeMethod(
 	val name: String,
-	val returnType: String?,
-	val attributes: List<String?>,
-	val genericArguments: List<String?>,
+	val returnType: NodeTypeReference,
+	val attributes: List<NodeTypeReference>,
+	val genericArguments: List<String>,
 	val parameters: List<NodeParameter>,
 	val isAbstract: Boolean,
 	val isAssembly: Boolean,
@@ -123,7 +123,21 @@ data object NodeProperty : AssemblyNode()
 @Serializable
 data class NodeParameter(
 	val name: String?,
-	val type: String?,
+	val type: NodeTypeReference,
+	val attributes: List<NodeTypeReference>,
 	val hasDefaultValue: Boolean,
 	val position: Int,
 ) : AssemblyNode()
+
+@Serializable
+data class NodeTypeReference(
+	val namespace: String?,
+	val name: String,
+	val typeParameters: List<NodeTypeReference>?
+) : AssemblyNode() {
+	val fullName
+		get() = (namespace?.let { "$it." } ?: "") + name
+
+	fun match(namespace: String, name: String) = this.namespace == namespace && this.name == name
+	fun match(name: String) = this.namespace == null && this.name == name
+}

@@ -1,4 +1,5 @@
-public sealed class MainKt : global::System.Object
+[global::kotlin.clr.KotlinFileClass]
+public static class MainKt
 {
     public static global::System.Int32 maxOf(global::System.Int32 a, global::System.Int32 b)
     {

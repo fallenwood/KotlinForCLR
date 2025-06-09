@@ -82,20 +82,44 @@ class ClassCodegen(val context: ClrBackendContext) {
 		}
 	}
 
-	fun IrClass.visit() = when (kind) {
-		CLASS -> visitClass()
-		INTERFACE -> visitInterface()
-		ENUM_CLASS -> visitEnumClass()
-		ENUM_ENTRY -> multiLinePlain(
+	fun IrClass.visit() = when {
+		isFileClass -> visitFileClass()
+		kind == CLASS -> visitClass()
+		kind == INTERFACE -> visitInterface()
+		kind == ENUM_CLASS -> visitEnumClass()
+		kind == ENUM_ENTRY -> multiLinePlain(
 			"/*",
 			"TODO enum entry",
 			"at IrClass.visit: $this",
 			"*/",
 		)
 
-		ANNOTATION_CLASS -> visitAnnotationClass()
-		OBJECT -> visitObject()
+		kind == ANNOTATION_CLASS -> visitAnnotationClass()
+		kind == OBJECT -> visitObject()
+		else -> multiLinePlain(
+			"/*",
+			"Unknown class type",
+			"at IrClass.visit: $this",
+			"*/",
+		)
 	}
+
+	fun IrClass.visitFileClass() = multiLineCode(
+		singleLinePlain(
+			"[global::kotlin.clr.KotlinFileClass]"
+		),
+		singleLineCode(
+			visibility.delegate.visit(),
+			plainPlain("static "),
+			plainPlain("class "),
+			plainPlain(name.asString())
+		),
+		blockPadding(
+			declarations
+				.mapNotNull { it.visit() }
+				.join(noneCode)
+		),
+	)
 
 	fun IrClass.visitClass() = multiLineCode(
 		singleLineCode(

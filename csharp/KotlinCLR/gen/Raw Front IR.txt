@@ -1,0 +1,13 @@
+FILE: Main.kt
+    public? final? fun maxOf(a: Int, b: Int): <implicit> {
+        ^maxOf when () {
+            CMP(>, a#.compareTo#(b#)) ->  {
+                a#
+            }
+            else ->  {
+                b#
+            }
+        }
+
+    }
+
