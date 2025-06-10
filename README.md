@@ -9,9 +9,6 @@
 
 ## 项目结构
 - `compiler` 编译器核心, 使用 Kotlin/JVM 编写, 依赖官方的 kotlin-compiler-embeddable
-  - `home` kotlin-home
-    - `clr/lib` Kotlin/CLR 标准库(.dll)
-    - `jvm/lib` Kotlin/JVM 标准库(.jar)
   - `src/commonMain/kotlin` 编译器核心代码
     - `Library.kt` Kotlin/CLR 标准库编译入口
     - `MainCLR.kt` Kotlin/CLR 编译入口
@@ -22,15 +19,30 @@
   - `KotlinCLR` 一个常规的 C# 项目, 用于测试和演示
   - `KotlinCLR/gen` 包含从 `kotlin` 编译而来的 C# 代码
 - `kotlin` 一个使用 Kotlin/CLR 的 Kotlin 项目, 用于测试和演示
+- `home` kotlin-home
+  - `lib` 标准库
+  - `resolver` 程序集解析器
 - `stdlib` Kotlin/CLR 编写的标准库, 暂未使用, 作为未来的标准库实现
 
 ## 使用
+1. 前往 [Actions(非稳定版)](https://github.com/Nyayurin/KotlinCLRBackendCompiler/actions) / [Release(稳定版)](https://github.com/Nyayurin/KotlinCLRBackendCompiler/releases) 下载编译器成品(zip/tar)和 `Kotlin-home`
+2. 解压编译器, 进入 bin 目录, 在 bin 目录下打开终端
+3. 运行 compiler 脚本并传递参数
+4. 参数为需要编译的 kotlin 源码/目录
+5. `-kotlin-home` 选项提供解压后的 `kotlin-home` 路径
+6. `-d` 选项提供输出路径
+7. `-dotnet-home` 选项提供 dotnet 根目录
+8. `-dotnet-version` 选项提供 dotnet 版本(x.y.z)
+9. 完整的命令应该类似 `compiler.bat kotlin/src -d out -kotlin-home home -dotnet-home "C:/Program Files/dotnet" -dotnet-version 9.0.5`
+10. 更多选项请参考 `compiler.clr.CLRCompilerArguments` 和 `org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments`
+
+## 开发
 1. 使用 Intellij IDEA 打开本项目, 使用 Rider / Visual Studio 打开 `csharp` 子目录
-2. 使用 Rider / Visual Studio 构建 `AssemblyResolver` 项目
-3. 使用 Rider / Visual Studio 构建 `kotlin-stdlib` 项目, 并将生成的 `kotlin-stdlib.dll` 放入 `compiler/home/clr/lib` 目录下
-4. 打开 `compiler/src/commonMain/kotlin/MainCLR.kt` 文件, 修改 sdkHome 为符合你本地环境的 .NET SDK 路径
-5. 使用 Intellij IDEA 运行 Gradle 任务 `:compiler:jvmRun -DmainClass=MainCLRKt` 即可将 `kotlin` 目录内的源码编译至 `csharp/KotlinCLR/gen` 目录下
-6. 使用 Rider / Visual Studio 运行 `KotlinCLR` 项目 
+2. 使用 Rider / Visual Studio 构建 `AssemblyResolver` 项目, 并将生成的 `AssemblyResolver.dll` `AssemblyResolver.runtimeconfig.json` 两个文件放入 `home/resolver` 目录下
+3. 使用 Rider / Visual Studio 构建 `kotlin-stdlib` 项目, 并将生成的 `kotlin-stdlib.dll` 放入 `home/lib` 目录下
+4. 打开 `compiler/src/commonMain/kotlin/Debug.kt` 文件, 修改 dotnetHome 和 dotnetVersion 为符合你本地环境
+5. 使用 Intellij IDEA 运行 Gradle 任务 `:compiler:jvmRun -DmainClass=DebugKt` 即可将 `kotlin` 目录内的源码编译至 `csharp/KotlinCLR/gen` 目录下
+6. 使用 Rider / Visual Studio 运行 `KotlinCLR` 项目
 
 ## [样例](./Example.md)
 

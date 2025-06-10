@@ -7,9 +7,10 @@ fun main() {
 	out.listFiles()?.forEach { it.delete() }
 	val arguments = CLRCompilerArguments().apply {
 		freeArgs += "../kotlin/src"
-		kotlinHome = "home/clr"
 		destination = out.absolutePath
-		sdkHome = "C:\\Program Files\\dotnet\\packs\\Microsoft.NETCore.App.Ref\\9.0.5\\ref\\net9.0"
+		kotlinHome = "../home"
+		dotnetHome = "C:\\Program Files\\dotnet\\packs\\Microsoft.NETCore.App.Ref\\9.0.5\\ref\\net9.0"
+		dotnetVersion = "9.0.5"
 	}
 	val compiler = CLRCompiler()
 	val exitCode = compiler.exec(System.err, arguments)

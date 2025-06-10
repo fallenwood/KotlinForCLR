@@ -21,6 +21,8 @@ import java.io.File
 
 object CLRConfigurationKeys {
 	val OUTPUT_DIRECTORY = CompilerConfigurationKey.create<File>("output directory")
-	val SDK_HOME = CompilerConfigurationKey.create<File>("sdk home")
-	val NO_SDK = CompilerConfigurationKey.create<Boolean>("no sdk")
+	val DOTNET_HOME = CompilerConfigurationKey.create<File>("dotnet home")
+	val DOTNET_VERSION = CompilerConfigurationKey.create<String>("dotnet version")
+	val ASSEMBLY_RESOLVER = CompilerConfigurationKey.create<File>("assembly resolver")
+	val NO_DOTNET = CompilerConfigurationKey.create<Boolean>("no dotnet")
 }

@@ -164,7 +164,7 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 		// 使用AssemblyResolver解析DLL
 		val assemblies = dllPaths
 			.filter { it.extension == "dll" }
-			.map { AssemblyResolver.resolve(it.absolutePath) }
+			.map { resolveAssembly(configuration.get(CLRConfigurationKeys.ASSEMBLY_RESOLVER)!!.absolutePath, it.absolutePath) }
 			.filter { it.name != null }
 			.associateBy { it.name!! }
 

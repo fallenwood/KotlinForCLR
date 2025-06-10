@@ -50,19 +50,20 @@ object Configuration : AbstractConfigurationPhase<CLRCompilerArguments>(
 			val collector = configuration.messageCollector
 			collector.report(LOGGING, "Configuring the compilation environment")
 
-			if (!configuration.configureSDKHome(arguments)) return
+			if (!configuration.configureDotnet(arguments)) return
 			configuration.moduleName = "main"
 			configuration.configureStandardLibs(configuration.kotlinPaths, arguments)
+			configuration.configureAssemblyResolver(arguments)
 			configuration.setupModuleChunk(arguments)
 			// should be called after configuring jdk home from build file
 			configuration.configureSdkAssemblyRoots()
 		}
 
-		private fun CompilerConfiguration.configureSDKHome(arguments: CLRCompilerArguments): Boolean {
-			if (arguments.noSdk) {
-				put(CLRConfigurationKeys.NO_SDK, true)
+		private fun CompilerConfiguration.configureDotnet(arguments: CLRCompilerArguments): Boolean {
+			if (arguments.noDotnet) {
+				put(CLRConfigurationKeys.NO_DOTNET, true)
 
-				if (arguments.sdkHome != null) {
+				if (arguments.dotnetHome != null) {
 					messageCollector.report(
 						STRONG_WARNING,
 						"The '-sdk-home' option is ignored because '-no-sdk' is specified"
@@ -71,18 +72,20 @@ object Configuration : AbstractConfigurationPhase<CLRCompilerArguments>(
 				return true
 			}
 
-			if (arguments.sdkHome != null) {
-				val sdkHome = File(arguments.sdkHome!!)
-				if (!sdkHome.exists() || !sdkHome.isDirectory) {
-					messageCollector.report(ERROR, "SDK home directory does not exist or is invalid: $sdkHome")
+			if (arguments.dotnetHome != null) {
+				val dotnetHome = File(arguments.dotnetHome!!)
+				if (!dotnetHome.exists() || !dotnetHome.isDirectory) {
+					messageCollector.report(ERROR, "Dotnet home directory does not exist or is invalid: $dotnetHome")
 					return false
 				}
-				if (!File(sdkHome, "mscorlib.dll").exists()) {
-					messageCollector.report(ERROR, "SDK home does not contain required libraries: $sdkHome")
+				val dotnetVersion = arguments.dotnetVersion
+				if (dotnetVersion == null) {
+					messageCollector.report(ERROR, "Dotnet version is not set")
 					return false
 				}
-				messageCollector.report(LOGGING, "Using SDK home directory: $sdkHome")
-				put(CLRConfigurationKeys.SDK_HOME, sdkHome)
+				messageCollector.report(LOGGING, "Using Dotnet home directory: $dotnetHome")
+				put(CLRConfigurationKeys.DOTNET_HOME, dotnetHome)
+				put(CLRConfigurationKeys.DOTNET_VERSION, dotnetVersion)
 				return true
 			}
 
@@ -111,6 +114,10 @@ object Configuration : AbstractConfigurationPhase<CLRCompilerArguments>(
 					"'-no-stdlib'"
 				)
 			}
+		}
+
+		private fun CompilerConfiguration.configureAssemblyResolver(arguments: CLRCompilerArguments) {
+			put(CLRConfigurationKeys.ASSEMBLY_RESOLVER, File(arguments.kotlinHome!!, "resolver/AssemblyResolver.dll"))
 		}
 
 		private fun CompilerConfiguration.setupModuleChunk(arguments: CLRCompilerArguments) {
@@ -190,9 +197,11 @@ object Configuration : AbstractConfigurationPhase<CLRCompilerArguments>(
 		}
 
 		private fun CompilerConfiguration.configureSdkAssemblyRoots() {
-			if (get(CLRConfigurationKeys.NO_SDK) == true) return
-			val sdkRoot = get(CLRConfigurationKeys.SDK_HOME) ?: error("SDK home is not set")
-			val dllRoots = sdkRoot.listFiles { it.extension == "dll" }.orEmpty()
+			if (get(CLRConfigurationKeys.NO_DOTNET) == true) return
+			val dotnetHome = get(CLRConfigurationKeys.DOTNET_HOME) ?: error("Dotnet home is not set")
+			val dotnetVersion = get(CLRConfigurationKeys.DOTNET_VERSION) ?: error("Dotnet home is not set")
+			val dotnetRoots = File(dotnetHome, "shared/Microsoft.NETCore.App/$dotnetVersion")
+			val dllRoots = dotnetRoots.listFiles { it.extension == "dll" }.orEmpty()
 
 			addAll(
 				CLIConfigurationKeys.CONTENT_ROOTS,

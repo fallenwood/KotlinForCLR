@@ -26,7 +26,7 @@ class CLRCompilerArguments : CommonCompilerArguments() {
 	@Argument(
 		value = "-d",
 		valueDescription = "<directory>",
-		description = "Destination directory for generated CLR assemblies."
+		description = "Destination directory for generated C# sources."
 	)
 	var destination: String? = null
 		set(value) {
@@ -38,7 +38,7 @@ class CLRCompilerArguments : CommonCompilerArguments() {
 		value = "-assembly",
 		shortName = "-asm",
 		valueDescription = "<path>",
-		description = "List of directories and JAR/ZIP archives to search for user class files."
+		description = "List of DLL files to search for user class files."
 	)
 	var assembly: String? = null
 		set(value) {
@@ -47,11 +47,22 @@ class CLRCompilerArguments : CommonCompilerArguments() {
 		}
 
 	@Argument(
-		value = "-sdk-home",
+		value = "-dotnet-home",
 		valueDescription = "<path>",
-		description = "Include a custom JDK from the specified location in the classpath instead of the default 'JAVA_HOME'."
+		description = "Include a custom dotnet from the specified location."
 	)
-	var sdkHome: String? = null
+	var dotnetHome: String? = null
+		set(value) {
+			checkFrozen()
+			field = if (value.isNullOrEmpty()) null else value
+		}
+
+	@Argument(
+		value = "-dotnet-version",
+		valueDescription = "<version>",
+		description = "Version for dotnet."
+	)
+	var dotnetVersion: String? = null
 		set(value) {
 			checkFrozen()
 			field = if (value.isNullOrEmpty()) null else value
@@ -62,8 +73,8 @@ class CLRCompilerArguments : CommonCompilerArguments() {
 		gradleInputType = GradleInputTypes.INPUT,
 		shouldGenerateDeprecatedKotlinOptions = true,
 	)
-	@Argument(value = "-no-sdk", description = "Don't automatically include the Java runtime in the classpath.")
-	var noSdk = false
+	@Argument(value = "-no-dotnet", description = "Don't automatically include the dotnet runtime.")
+	var noDotnet = false
 		set(value) {
 			checkFrozen()
 			field = value
@@ -71,7 +82,7 @@ class CLRCompilerArguments : CommonCompilerArguments() {
 
 	@Argument(
 		value = "-no-stdlib",
-		description = "Don't automatically include the Kotlin/JVM stdlib and Kotlin reflection dependencies in the classpath."
+		description = "Don't automatically include the Kotlin/CLR stdlib."
 	)
 	var noStdlib = false
 		set(value) {

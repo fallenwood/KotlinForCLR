@@ -1,0 +1,28 @@
+name: Package
+on:
+  release:
+    types: [ created ]
+jobs:
+  package-linux:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x ./gradlew
+      - name: package
+        run: ./gradlew :compiler:assembleJvmDist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            compiler/build/distributions/compiler-jvm.zip
+            compiler/build/distributions/compiler-jvm.tar
+            home

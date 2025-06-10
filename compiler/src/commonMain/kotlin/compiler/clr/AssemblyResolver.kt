@@ -18,14 +18,6 @@ package compiler.clr
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.io.File
-
-object AssemblyResolver {
-	fun resolve(assembly: String) = resolveAssembly(
-		File("..\\csharp\\AssemblyResolver\\bin\\Release\\net9.0\\KotlinCLRBackendCompiler.dll").absolutePath,
-		assembly
-	)
-}
 
 fun resolveAssembly(programPath: String, assembly: String): NodeAssembly {
 	val process = ProcessBuilder("dotnet", "\"$programPath\"", "\"$assembly\"")
@@ -33,7 +25,13 @@ fun resolveAssembly(programPath: String, assembly: String): NodeAssembly {
 	val json = process.inputReader(Charsets.UTF_8).use {
 		it.readText()
 	}
-	return Json.decodeFromString<NodeAssembly>(json)
+	return try {
+		Json.decodeFromString<NodeAssembly>(json)
+	} catch (e: Exception) {
+		println("exception: dotnet $programPath $assembly")
+		println(json)
+		throw e
+	}
 }
 
 abstract class AssemblyNode
@@ -133,7 +131,7 @@ data class NodeParameter(
 data class NodeTypeReference(
 	val namespace: String?,
 	val name: String,
-	val typeParameters: List<NodeTypeReference>?
+	val typeParameters: List<NodeTypeReference>?,
 ) : AssemblyNode() {
 	val fullName
 		get() = (namespace?.let { "$it." } ?: "") + name

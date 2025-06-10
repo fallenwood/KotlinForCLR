@@ -4,7 +4,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KotlinCLR", "KotlinCLR\Kotl
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "kotlin-stdlib", "kotlin-stdlib\kotlin-stdlib.csproj", "{FDA1DDCC-1FBB-45FA-951C-ACE4C0AD2BD3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KotlinCLRBackendCompiler", "AssemblyResolver\KotlinCLRBackendCompiler.csproj", "{59219A47-6FB4-462D-97E6-F8FF86C2A80B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyResolver", "AssemblyResolver\AssemblyResolver.csproj", "{59219A47-6FB4-462D-97E6-F8FF86C2A80B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

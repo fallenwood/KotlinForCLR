@@ -1,3 +1,7 @@
+@file:OptIn(ExperimentalKotlinGradlePluginApi::class)
+
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+
 plugins {
 	kotlin("multiplatform") version "2.1.20"
 	kotlin("plugin.serialization") version "2.1.20"
@@ -6,7 +10,13 @@ plugins {
 kotlin {
 	jvmToolchain(17)
 
-	jvm()
+	jvm {
+		binaries {
+			executable {
+				mainClass = "MainKt"
+			}
+		}
+	}
 
 	sourceSets {
 		commonMain {

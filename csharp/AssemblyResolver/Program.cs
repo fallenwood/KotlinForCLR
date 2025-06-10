@@ -17,7 +17,7 @@
 using System.Reflection;
 using System.Text.Json;
 
-namespace KotlinCLRBackendCompiler;
+namespace AssemblyResolver;
 
 public static class Program {
 	public static void Main(string[] args) {
