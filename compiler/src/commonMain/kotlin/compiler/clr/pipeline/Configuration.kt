@@ -17,6 +17,10 @@
 package compiler.clr.pipeline
 
 import compiler.clr.*
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.config.addKotlinSourceRoot
 import org.jetbrains.kotlin.cli.common.getLibraryFromHome
@@ -38,6 +42,10 @@ object Configuration : AbstractConfigurationPhase<CLRCompilerArguments>(
 	name = "ClrConfigurationPipelinePhase",
 	configurationUpdaters = listOf(ClrConfigurationUpdater)
 ) {
+	private val json = Json {
+		ignoreUnknownKeys = true
+	}
+
 	override fun createMetadataVersion(versionArray: IntArray) = MetadataVersion(*versionArray)
 	override fun provideCustomScriptingPluginOptions(arguments: CLRCompilerArguments) = emptyList<String>()
 
@@ -56,7 +64,7 @@ object Configuration : AbstractConfigurationPhase<CLRCompilerArguments>(
 			configuration.configureAssemblyResolver(arguments)
 			configuration.setupModuleChunk(arguments)
 			// should be called after configuring jdk home from build file
-			configuration.configureSdkAssemblyRoots()
+			configuration.configureDotnetAssemblyRoots()
 		}
 
 		private fun CompilerConfiguration.configureDotnet(arguments: CLRCompilerArguments): Boolean {
@@ -196,12 +204,16 @@ object Configuration : AbstractConfigurationPhase<CLRCompilerArguments>(
 			}
 		}
 
-		private fun CompilerConfiguration.configureSdkAssemblyRoots() {
+		@OptIn(ExperimentalSerializationApi::class)
+		private fun CompilerConfiguration.configureDotnetAssemblyRoots() {
 			if (get(CLRConfigurationKeys.NO_DOTNET) == true) return
 			val dotnetHome = get(CLRConfigurationKeys.DOTNET_HOME) ?: error("Dotnet home is not set")
 			val dotnetVersion = get(CLRConfigurationKeys.DOTNET_VERSION) ?: error("Dotnet home is not set")
 			val dotnetRoots = File(dotnetHome, "shared/Microsoft.NETCore.App/$dotnetVersion")
-			val dllRoots = dotnetRoots.listFiles { it.extension == "dll" }.orEmpty()
+			val deps = File(dotnetRoots, "Microsoft.NETCore.App.deps.json").inputStream().use { stream ->
+				json.decodeFromStream<Deps>(stream)
+			}
+			val dllRoots = deps.toList().map { File(dotnetRoots, it) }
 
 			addAll(
 				CLIConfigurationKeys.CONTENT_ROOTS,
@@ -210,4 +222,18 @@ object Configuration : AbstractConfigurationPhase<CLRCompilerArguments>(
 			)
 		}
 	}
+}
+
+@Serializable
+private data class Deps(
+	val targets: Map<String, Map<String, Target>>,
+) {
+	@Serializable
+	data class Target(
+		val runtime: Map<String, Unit>,
+	)
+
+	fun toList(): List<String> = targets.values
+		.flatMap { it.values }
+		.flatMap { it.runtime.keys }
 }

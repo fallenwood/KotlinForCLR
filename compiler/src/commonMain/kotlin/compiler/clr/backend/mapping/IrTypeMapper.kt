@@ -43,7 +43,7 @@ class IrTypeMapper(val context: ClrBackendContext) {
 	 * 映射返回类型，特殊处理Unit类型为void
 	 */
 	fun mapReturnType(type: IrType): String {
-		if (type.isUnit()) {
+		if (type.isUnit() || type.isNothing()) {
 			return "void"
 		}
 		return mapType(type)
@@ -71,7 +71,7 @@ class IrTypeMapper(val context: ClrBackendContext) {
 			"kotlin.CharSequence" -> "global::System.Collections.Generic.IEnumerable<global::System.Char>"
 			"kotlin.Comparable" -> "global::System.IComparable"
 			"kotlin.Enum" -> "global::System.Enum"
-			"kotlin.Nothing" -> "global::System.Void"
+//			"kotlin.Nothing" -> "global::System.Void" // System.Void 不可用
 			"kotlin.Number" -> "global::System.Numerics.INumber"
 			"kotlin.Byte" -> "global::System.SByte"
 			"kotlin.Short" -> "global::System.Int16"

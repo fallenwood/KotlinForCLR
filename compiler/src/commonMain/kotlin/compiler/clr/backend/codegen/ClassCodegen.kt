@@ -228,42 +228,51 @@ class ClassCodegen(val context: ClrBackendContext) {
 	fun IrFunction.visit() = when (this) {
 		is IrConstructor -> visit()
 		else -> multiLineCode(
-			singleLineCode(
-				buildList {
-					val isStatic = when {
-						parent is IrFile -> true
-						isStatic -> true
-						else -> false
-					}
-
-					val returnType = typeMapper.mapReturnType(returnType)
-
-					val parameters = valueParameters.map {
-						typeMapper.mapType(it.type) to it.name.asString()
-					}
-
-					add(visibility.delegate.visit())
-					if (isStatic) {
-						add(plainPlain("static "))
-					}
-					add(plainPlain("$returnType "))
-					add(plainPlain("${name.asString()}("))
-					add(plainPlain(parameters.joinToString(", ") { "${it.first} ${it.second}" }))
-					add(plainPlain(")"))
+			buildList {
+				if (returnType.isNothing()) {
+					add(singleLinePlain("[global::System.Diagnostics.CodeAnalysis.DoesNotReturnAttribute]"))
 				}
-			),
-			body?.visit() ?: blockPadding(
-				singleLinePlain(
-					when {
-						returnType.isUnit() -> ""
-						returnType.isString() -> "return \"\";"
-						returnType.isBoolean() -> "return false;"
-						returnType.isArray() -> "return new $returnType {};"
-						returnType.isNumber() -> "return 0;"
-						else -> "return null;"
-					}
+				add(
+					singleLineCode(
+						buildList {
+							val isStatic = when {
+								parent is IrFile -> true
+								isStatic -> true
+								else -> false
+							}
+
+							val returnType = typeMapper.mapReturnType(returnType)
+
+							val parameters = valueParameters.map {
+								typeMapper.mapType(it.type) to it.name.asString()
+							}
+
+							add(visibility.delegate.visit())
+							if (isStatic) {
+								add(plainPlain("static "))
+							}
+							add(plainPlain("$returnType "))
+							add(plainPlain("${name.asString()}("))
+							add(plainPlain(parameters.joinToString(", ") { "${it.first} ${it.second}" }))
+							add(plainPlain(")"))
+						}
+					)
 				)
-			),
+				add(
+					body?.visit() ?: blockPadding(
+						singleLinePlain(
+							when {
+								returnType.isUnit() -> ""
+								returnType.isString() -> "return \"\";"
+								returnType.isBoolean() -> "return false;"
+								returnType.isArray() -> "return new $returnType {};"
+								returnType.isNumber() -> "return 0;"
+								else -> "return null;"
+							}
+						)
+					)
+				)
+			}
 		)
 	}
 

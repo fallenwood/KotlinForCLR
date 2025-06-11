@@ -38,7 +38,6 @@ import org.jetbrains.kotlin.com.intellij.core.CoreJavaFileManager
 import org.jetbrains.kotlin.com.intellij.openapi.Disposable
 import org.jetbrains.kotlin.com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.com.intellij.openapi.vfs.StandardFileSystems
-import org.jetbrains.kotlin.com.intellij.openapi.vfs.VirtualFile
 import org.jetbrains.kotlin.com.intellij.openapi.vfs.VirtualFileManager
 import org.jetbrains.kotlin.com.intellij.openapi.vfs.VirtualFileSystem
 import org.jetbrains.kotlin.com.intellij.psi.PsiManager
@@ -163,10 +162,8 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 
 		// 使用AssemblyResolver解析DLL
 		val assemblies = dllPaths
-			.filter { it.extension == "dll" }
 			.map { resolveAssembly(configuration.get(CLRConfigurationKeys.ASSEMBLY_RESOLVER)!!.absolutePath, it.absolutePath) }
-			.filter { it.name != null }
-			.associateBy { it.name!! }
+			.associateBy { it.name }
 
 		// 创建依赖列表
 		val binaryModuleData = BinaryModuleData.initialize(
@@ -223,7 +220,7 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 		val dllRootsResolver = DllRootsResolver(
 			PsiManager.getInstance(project),
 			messageCollector,
-			{ contentRootToVirtualFile(it, localFileSystem, projectEnvironment.jarFileSystem, messageCollector) },
+			{ null },
 			outputDirectory?.let { localFileSystem.findFileByPath(it) },
 			contentRoots.any { it is KotlinSourceRoot },
 		)
@@ -278,40 +275,6 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 					addRoots(initialRoots, configuration.getNotNull(CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY))
 					packagePartProviders += this
 				}
-			}
-		}
-	}
-
-	private fun contentRootToVirtualFile(
-		root: ClrContentRootBase,
-		localFileSystem: VirtualFileSystem,
-		jarFileSystem: VirtualFileSystem,
-		messageCollector: MessageCollector,
-	): VirtualFile? =
-		when (root) {
-			is ClrDllRoot ->
-				if (root.file.isFile) jarFileSystem.findDllRoot(root.file)
-				else localFileSystem.findExistingRoot(root, "DLL entry", messageCollector)
-
-			is CSharpSourceRoot ->
-				localFileSystem.findExistingRoot(root, "C# source root", messageCollector)
-
-			else ->
-				throw IllegalStateException("Unexpected root: $root")
-		}
-
-	private fun VirtualFileSystem.findDllRoot(file: File): VirtualFile? =
-		findFileByPath("${file.absolutePath}!/")
-
-	private fun VirtualFileSystem.findExistingRoot(
-		root: ClrContentRoot, rootDescription: String, messageCollector: MessageCollector,
-	): VirtualFile? {
-		return findFileByPath(root.file.absolutePath).also {
-			if (it == null) {
-				messageCollector.report(
-					CompilerMessageSeverity.STRONG_WARNING,
-					"$rootDescription points to a non-existent location: ${root.file}"
-				)
 			}
 		}
 	}

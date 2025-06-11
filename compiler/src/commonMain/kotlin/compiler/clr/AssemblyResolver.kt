@@ -28,7 +28,7 @@ fun resolveAssembly(programPath: String, assembly: String): NodeAssembly {
 	return try {
 		Json.decodeFromString<NodeAssembly>(json)
 	} catch (e: Exception) {
-		println("exception: dotnet $programPath $assembly")
+		println("exception: dotnet \"$programPath\" \"$assembly\"")
 		println(json)
 		throw e
 	}
@@ -38,17 +38,17 @@ abstract class AssemblyNode
 
 @Serializable
 data class NodeAssembly(
-	val name: String?,
+	val name: String,
 	val types: List<NodeType>,
 ) : AssemblyNode()
 
 @Serializable
 data class NodeType(
 	val name: String,
-	val namespace: String?,
+	val namespace: String,
 	val baseType: NodeTypeReference?,
 	val interfaces: List<NodeTypeReference>,
-	val attributes: List<NodeTypeReference>,
+	val attributes: List<NodeAttribute>,
 	val constructors: List<NodeConstructor>,
 	val events: List<NodeEvent>,
 	val fields: List<NodeField>,
@@ -59,9 +59,7 @@ data class NodeType(
 	val isArray: Boolean,
 	val isClass: Boolean,
 	val isEnum: Boolean,
-	val isGenericParameter: Boolean,
 	val isGenericType: Boolean,
-	val isGenericTypeDefinition: Boolean,
 	val isInterface: Boolean,
 	val isNested: Boolean,
 	val isNestedAssembly: Boolean,
@@ -70,14 +68,13 @@ data class NodeType(
 	val isNestedPublic: Boolean,
 	val isNotPublic: Boolean,
 	val isPointer: Boolean,
-	val isPrimitive: Boolean,
 	val isPublic: Boolean,
 	val isSealed: Boolean,
-	val isSignatureType: Boolean,
-	val isTypeDefinition: Boolean,
 	val isValueType: Boolean,
-	val isVisible: Boolean,
-) : AssemblyNode()
+) : AssemblyNode() {
+	fun match(namespace: String, name: String) = this.namespace == namespace && this.name == name
+	fun match(name: String) = this.namespace == "" && this.name == name
+}
 
 @Serializable
 data class NodeConstructor(
@@ -102,8 +99,8 @@ data object NodeField : AssemblyNode()
 data class NodeMethod(
 	val name: String,
 	val returnType: NodeTypeReference,
-	val attributes: List<NodeTypeReference>,
-	val genericArguments: List<String>,
+	val attributes: List<NodeAttribute>,
+//	val typeArguments: List<String>,
 	val parameters: List<NodeParameter>,
 	val isAbstract: Boolean,
 	val isAssembly: Boolean,
@@ -122,20 +119,25 @@ data object NodeProperty : AssemblyNode()
 data class NodeParameter(
 	val name: String?,
 	val type: NodeTypeReference,
-	val attributes: List<NodeTypeReference>,
+	val attributes: List<NodeAttribute>,
 	val hasDefaultValue: Boolean,
-	val position: Int,
+	val isParams: Boolean,
+) : AssemblyNode()
+
+@Serializable
+data class NodeAttribute(
+	val type: NodeTypeReference?
 ) : AssemblyNode()
 
 @Serializable
 data class NodeTypeReference(
 	val namespace: String?,
 	val name: String,
-	val typeParameters: List<NodeTypeReference>?,
+	val isClass: Boolean,
+	val isPointer: Boolean,
+	val isArray: Boolean,
+//	val typeParameters: List<NodeTypeReference>?,
 ) : AssemblyNode() {
-	val fullName
-		get() = (namespace?.let { "$it." } ?: "") + name
-
 	fun match(namespace: String, name: String) = this.namespace == namespace && this.name == name
 	fun match(name: String) = this.namespace == null && this.name == name
 }

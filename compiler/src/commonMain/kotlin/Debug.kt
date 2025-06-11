@@ -9,7 +9,7 @@ fun main() {
 		freeArgs += "../kotlin/src"
 		destination = out.absolutePath
 		kotlinHome = "../home"
-		dotnetHome = "C:\\Program Files\\dotnet\\packs\\Microsoft.NETCore.App.Ref\\9.0.5\\ref\\net9.0"
+		dotnetHome = "C:\\Program Files\\dotnet"
 		dotnetVersion = "9.0.5"
 	}
 	val compiler = CLRCompiler()

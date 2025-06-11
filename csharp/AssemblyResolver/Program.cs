@@ -14,37 +14,49 @@
    limitations under the License.
  */
 
-using System.Reflection;
 using System.Text.Json;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace AssemblyResolver;
 
 public static class Program {
 	public static void Main(string[] args) {
-		Console.WriteLine(
-			JsonSerializer.Serialize(
-				NodeAssembly.from(Assembly.LoadFrom(args[0]))
-			)
-		);
+		var reference = MetadataReference.CreateFromFile(args[0]);
+		var compilation = CSharpCompilation.Create("Analysis")
+			.AddReferences(reference);
+
+		if (compilation.GetAssemblyOrModuleSymbol(reference) is IAssemblySymbol assemblySymbol) {
+			Console.WriteLine(JsonSerializer.Serialize(NodeAssembly.from(assemblySymbol)));
+		}
 	}
 }
 
 public record NodeAssembly(
-	string? name,
+	string name,
 	List<NodeType> types
 ) {
-	public static NodeAssembly from(Assembly asm) => new(
-		name: asm.GetName().Name,
-		types: asm.GetTypes().Select(NodeType.from).ToList()
+	public static NodeAssembly from(IAssemblySymbol symbol) => new(
+		name: symbol.Name,
+		types: makeTypes(symbol.GlobalNamespace)
 	);
+
+	private static List<NodeType> makeTypes(INamespaceSymbol symbol) => symbol.GetMembers()
+		.SelectMany(it => {
+			if (it is INamespaceSymbol namespaceSymbol) {
+				return makeTypes(namespaceSymbol);
+			}
+
+			return [NodeType.from(it as INamedTypeSymbol)];
+		}).ToList();
 }
 
 public record NodeType(
 	string name,
-	string? @namespace,
+	string @namespace,
 	NodeTypeReference? baseType,
 	List<NodeTypeReference> interfaces,
-	List<NodeTypeReference> attributes,
+	List<NodeAttribute> attributes,
 	List<NodeConstructor> constructors,
 	List<NodeEvent> events,
 	List<NodeField> fields,
@@ -55,9 +67,7 @@ public record NodeType(
 	bool isArray,
 	bool isClass,
 	bool isEnum,
-	bool isGenericParameter,
 	bool isGenericType,
-	bool isGenericTypeDefinition,
 	bool isInterface,
 	bool isNested,
 	bool isNestedAssembly,
@@ -66,48 +76,59 @@ public record NodeType(
 	bool isNestedPublic,
 	bool isNotPublic,
 	bool isPointer,
-	bool isPrimitive,
 	bool isPublic,
 	bool isSealed,
-	bool isSignatureType,
-	bool isTypeDefinition,
-	bool isValueType,
-	bool isVisible
+	bool isValueType
 ) {
-	public static NodeType from(Type type) => new(
-		name: type.Name,
-		@namespace: type.Namespace,
-		baseType: type.BaseType?.let(NodeTypeReference.from),
-		interfaces: type.GetInterfaces().Select(NodeTypeReference.from).ToList(),
-		attributes: type.GetCustomAttributes().Select(it => NodeTypeReference.from(it.GetType())).ToList(),
-		constructors: type.GetConstructors().Select(NodeConstructor.from).ToList(),
-		events: type.GetEvents().Select(NodeEvent.from).ToList(),
-		fields: type.GetFields().Select(NodeField.from).ToList(),
-		methods: type.GetMethods().Select(NodeMethod.from).ToList(),
-		nestedTypes: type.GetNestedTypes().Select(from).ToList(),
-		properties: type.GetProperties().Select(NodeProperty.from).ToList(),
-		isAbstract: type.IsAbstract,
-		isArray: type.IsArray,
-		isClass: type.IsClass,
-		isEnum: type.IsEnum,
-		isGenericParameter: type.IsGenericParameter,
-		isGenericType: type.IsGenericType,
-		isGenericTypeDefinition: type.IsGenericTypeDefinition,
-		isInterface: type.IsInterface,
-		isNested: type.IsNested,
-		isNestedAssembly: type.IsNestedAssembly,
-		isNestedFamily: type.IsNestedFamANDAssem,
-		isNestedPrivate: type.IsNestedPrivate,
-		isNestedPublic: type.IsNestedPublic,
-		isNotPublic: type.IsNotPublic,
-		isPointer: type.IsPointer,
-		isPrimitive: type.IsPrimitive,
-		isPublic: type.IsPublic,
-		isSealed: type.IsSealed,
-		isSignatureType: type.IsSignatureType,
-		isTypeDefinition: type.IsTypeDefinition,
-		isValueType: type.IsValueType,
-		isVisible: type.IsVisible
+	public static NodeType from(INamedTypeSymbol symbol) => new(
+		name: symbol.Name,
+		@namespace: symbol.ContainingNamespace?.let(it =>
+			it.IsGlobalNamespace ? "" : it.ToDisplayString()) ?? "",
+		baseType: symbol.BaseType?.let(NodeTypeReference.from),
+		interfaces: symbol.Interfaces.Select(NodeTypeReference.from).ToList(),
+		attributes: symbol.GetAttributes().Select(NodeAttribute.from).ToList(),
+		constructors: symbol.InstanceConstructors.Select(NodeConstructor.from).ToList(),
+		events: symbol.GetMembers()
+			.Where(it => it is IEventSymbol)
+			.Cast<IEventSymbol>()
+			.Select(NodeEvent.from)
+			.ToList(),
+		fields: symbol.GetMembers()
+			.Where(it => it is IFieldSymbol)
+			.Cast<IFieldSymbol>()
+			.Select(NodeField.from)
+			.ToList(),
+		methods: symbol.GetMembers()
+			.Where(it => it is IMethodSymbol)
+			.Cast<IMethodSymbol>()
+			.Select(NodeMethod.from)
+			.ToList(),
+		nestedTypes: symbol.GetMembers()
+			.Where(it => it is INamedTypeSymbol)
+			.Cast<INamedTypeSymbol>()
+			.Select(from)
+			.ToList(),
+		properties: symbol.GetMembers()
+			.Where(it => it is IPropertySymbol)
+			.Cast<IPropertySymbol>()
+			.Select(NodeProperty.from)
+			.ToList(),
+		isAbstract: symbol.IsAbstract,
+		isArray: symbol.TypeKind == TypeKind.Array,
+		isClass: symbol.TypeKind == TypeKind.Class,
+		isEnum: symbol.TypeKind == TypeKind.Enum,
+		isGenericType: symbol.IsGenericType,
+		isInterface: symbol.TypeKind == TypeKind.Interface,
+		isNested: symbol.ContainingType != null,
+		isNestedAssembly: symbol.ContainingType?.DeclaredAccessibility == Accessibility.Internal,
+		isNestedFamily: symbol.ContainingType?.DeclaredAccessibility == Accessibility.Protected,
+		isNestedPrivate: symbol.ContainingType?.DeclaredAccessibility == Accessibility.Private,
+		isNestedPublic: symbol.ContainingType?.DeclaredAccessibility == Accessibility.Public,
+		isNotPublic: symbol.DeclaredAccessibility != Accessibility.Public,
+		isPointer: symbol.TypeKind == TypeKind.Pointer,
+		isPublic: symbol.DeclaredAccessibility == Accessibility.Public,
+		isSealed: symbol.IsSealed,
+		isValueType: symbol.IsValueType
 	);
 }
 
@@ -122,36 +143,36 @@ public record NodeConstructor(
 	bool isStatic,
 	bool isVirtual
 ) {
-	public static NodeConstructor from(ConstructorInfo constructor) => new(
-		parameters: constructor.GetParameters().Select(NodeParameter.from).ToList(),
-		isAbstract: constructor.IsAbstract,
-		isAssembly: constructor.IsAssembly,
-		isFamily: constructor.IsFamily,
-		isFinal: constructor.IsFinal,
-		isPrivate: constructor.IsPrivate,
-		isPublic: constructor.IsPublic,
-		isStatic: constructor.IsStatic,
-		isVirtual: constructor.IsVirtual
+	public static NodeConstructor from(IMethodSymbol symbol) => new(
+		parameters: symbol.Parameters.Select(NodeParameter.from).ToList(),
+		isAbstract: symbol.IsAbstract,
+		isAssembly: symbol.DeclaredAccessibility == Accessibility.Internal,
+		isFamily: symbol.DeclaredAccessibility == Accessibility.Protected,
+		isFinal: symbol.IsSealed,
+		isPrivate: symbol.DeclaredAccessibility == Accessibility.Private,
+		isPublic: symbol.DeclaredAccessibility == Accessibility.Public,
+		isStatic: symbol.IsStatic,
+		isVirtual: symbol.IsVirtual
 	);
 }
 
 public record NodeEvent(
 ) {
-	public static NodeEvent from(EventInfo @event) => new(
+	public static NodeEvent from(IEventSymbol symbol) => new(
 	);
 }
 
 public record NodeField(
 ) {
-	public static NodeField from(FieldInfo field) => new(
+	public static NodeField from(IFieldSymbol symbol) => new(
 	);
 }
 
 public record NodeMethod(
 	string name,
 	NodeTypeReference returnType,
-	List<NodeTypeReference> attributes,
-	List<string> genericArguments,
+	List<NodeAttribute> attributes,
+	// List<string> typeArguments,
 	List<NodeParameter> parameters,
 	bool isAbstract,
 	bool isAssembly,
@@ -162,56 +183,66 @@ public record NodeMethod(
 	bool isStatic,
 	bool isVirtual
 ) {
-	public static NodeMethod from(MethodInfo method) => new(
-		name: method.Name,
-		returnType: NodeTypeReference.from(method.ReturnType),
-		attributes: method.GetCustomAttributes().Select(it => NodeTypeReference.from(it.GetType())).ToList(),
-		genericArguments: method.GetGenericArguments().Select(it => it.Name).ToList(),
-		parameters: method.GetParameters().Select(NodeParameter.from).ToList(),
-		isAbstract: method.IsAbstract,
-		isAssembly: method.IsAssembly,
-		isFamily: method.IsFamily,
-		isFinal: method.IsFinal,
-		isPrivate: method.IsPrivate,
-		isPublic: method.IsPublic,
-		isStatic: method.IsStatic,
-		isVirtual: method.IsVirtual
+	public static NodeMethod from(IMethodSymbol symbol) => new(
+		name: symbol.Name,
+		returnType: NodeTypeReference.from(symbol.ReturnType),
+		attributes: symbol.GetAttributes().Select(NodeAttribute.from).ToList(),
+		// typeArguments: symbol.TypeArguments().Select(it => it.Name).ToList(),
+		parameters: symbol.Parameters.Select(NodeParameter.from).ToList(),
+		isAbstract: symbol.IsAbstract,
+		isAssembly: symbol.DeclaredAccessibility == Accessibility.Internal,
+		isFamily: symbol.DeclaredAccessibility == Accessibility.Protected,
+		isFinal: symbol.IsSealed,
+		isPrivate: symbol.DeclaredAccessibility == Accessibility.Private,
+		isPublic: symbol.DeclaredAccessibility == Accessibility.Public,
+		isStatic: symbol.IsStatic,
+		isVirtual: symbol.IsVirtual
 	);
 }
 
 public record NodeProperty(
 ) {
-	public static NodeProperty from(PropertyInfo property) => new(
+	public static NodeProperty from(IPropertySymbol symbol) => new(
 	);
 }
 
 public record NodeParameter(
 	string? name,
 	NodeTypeReference type,
-	List<NodeTypeReference> attributes,
+	List<NodeAttribute> attributes,
 	bool hasDefaultValue,
-	int position
+	bool isParams
 ) {
-	public static NodeParameter from(ParameterInfo parameter) => new(
-		name: parameter.Name,
-		type: NodeTypeReference.from(parameter.ParameterType),
-		attributes: parameter.GetCustomAttributes().Select(it => NodeTypeReference.from(it.GetType())).ToList(),
-		hasDefaultValue: parameter.HasDefaultValue,
-		position: parameter.Position
+	public static NodeParameter from(IParameterSymbol symbol) => new(
+		name: symbol.Name,
+		type: NodeTypeReference.from(symbol.Type),
+		attributes: symbol.GetAttributes().Select(NodeAttribute.from).ToList(),
+		hasDefaultValue: symbol.HasExplicitDefaultValue,
+		isParams: symbol.IsParams
+	);
+}
+
+public record NodeAttribute(
+	NodeTypeReference? type
+) {
+	public static NodeAttribute from(AttributeData data) => new(
+		type: data.AttributeClass?.let(NodeTypeReference.from)
 	);
 }
 
 public record NodeTypeReference(
 	string? @namespace,
 	string name,
-	List<NodeTypeReference>? typeParameters
+	bool isClass,
+	bool isPointer,
+	bool isArray
 ) {
-	public static NodeTypeReference from(Type type) => new(
-		@namespace: type.Namespace,
-		name: type.Name,
-		typeParameters: type.IsGenericType
-			? type.GetGenericArguments().Select(from).ToList()
-			: null
+	public static NodeTypeReference from(ITypeSymbol symbol) => new(
+		@namespace: symbol.ContainingNamespace?.ToDisplayString(),
+		name: symbol.Name,
+		isClass: symbol.TypeKind == TypeKind.Class,
+		isPointer: symbol.TypeKind == TypeKind.Pointer,
+		isArray: symbol.TypeKind == TypeKind.Array
 	);
 }
 

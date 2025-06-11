@@ -38,7 +38,7 @@
 
 ## 开发
 1. 使用 Intellij IDEA 打开本项目, 使用 Rider / Visual Studio 打开 `csharp` 子目录
-2. 使用 Rider / Visual Studio 构建 `AssemblyResolver` 项目, 并将生成的 `AssemblyResolver.dll` `AssemblyResolver.runtimeconfig.json` 两个文件放入 `home/resolver` 目录下
+2. 使用 Rider / Visual Studio 构建 `AssemblyResolver` 项目, 并将生成的所有文件及文件夹放入 `home/resolver` 目录下
 3. 使用 Rider / Visual Studio 构建 `kotlin-stdlib` 项目, 并将生成的 `kotlin-stdlib.dll` 放入 `home/lib` 目录下
 4. 打开 `compiler/src/commonMain/kotlin/Debug.kt` 文件, 修改 dotnetHome 和 dotnetVersion 为符合你本地环境
 5. 使用 Intellij IDEA 运行 Gradle 任务 `:compiler:jvmRun -DmainClass=DebugKt` 即可将 `kotlin` 目录内的源码编译至 `csharp/KotlinCLR/gen` 目录下

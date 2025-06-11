@@ -97,7 +97,11 @@ class ClrSymbolProvider(
 		?: session.nullableModuleData
 		?: error("Module data is not registered in $session")
 
-	private val firFileSymbols = assemblies.mapValues { (_, node) -> node.types.map { buildFile(it) } }.apply {
+	private val firFileSymbols = assemblies.mapValues { (_, node) ->
+		node.types
+			.filterNot { it.match("System", "Void") || it.isNotPublic }
+			.map { buildFile(it) }
+	}.apply {
 		/*File("fir").mkdir()
 		this.forEach { (assembly, fileSymbols) ->
 			File("fir/$assembly").printWriter().use { writer ->
@@ -111,12 +115,18 @@ class ClrSymbolProvider(
 			moduleData = firModuleData
 			origin = FirDeclarationOrigin.Library
 			packageDirective = buildPackageDirective {
-				packageFqName = FqName(node.namespace ?: "")
+				packageFqName = FqName(node.namespace)
 			}
 
 			declarations += when {
-				node.attributes.any { it.match("kotlin.clr", "KotlinObject") } -> buildObject(node).fir
-				node.attributes.any { it.match("kotlin.clr", "KotlinFileClass") } -> buildFileClass(node).fir
+				node.attributes
+					.mapNotNull { it.type }
+					.any { it.match("kotlin.clr", "KotlinObject") } -> buildObject(node).fir
+
+				node.attributes
+					.mapNotNull { it.type }
+					.any { it.match("kotlin.clr", "KotlinFileClass") } -> buildFileClass(node).fir
+
 				else -> buildClass(node).fir
 			}
 			name = node.name
@@ -126,7 +136,7 @@ class ClrSymbolProvider(
 	}
 
 	private fun buildObject(node: NodeType) = FirRegularClassSymbol(
-		classId = classId(node.namespace ?: "", node.name)
+		classId = classId(node.namespace, node.name)
 	).also { classSymbol ->
 		buildRegularClass {
 			moduleData = firModuleData
@@ -147,14 +157,14 @@ class ClrSymbolProvider(
 		}
 		clrSymbolNamesProvider.registerClassName(classSymbol.packageFqName(), classSymbol.name)
 		classPackages.getOrPut(
-			key = node.namespace ?: "",
+			key = node.namespace,
 			defaultValue = { mutableListOf() }
 		) += classSymbol.classId
 		classSymbols[classSymbol.classId] = classSymbol
 	}
 
 	private fun buildFileClass(node: NodeType) = FirRegularClassSymbol(
-		classId = classId(node.namespace ?: "", node.name)
+		classId = classId(node.namespace, node.name)
 	).also { classSymbol ->
 		buildRegularClass {
 			moduleData = firModuleData
@@ -176,19 +186,18 @@ class ClrSymbolProvider(
 		}
 		clrSymbolNamesProvider.registerClassName(classSymbol.packageFqName(), classSymbol.name)
 		classPackages.getOrPut(
-			key = node.namespace ?: "",
+			key = node.namespace,
 			defaultValue = { mutableListOf() }
 		) += classSymbol.classId
 		classSymbols[classSymbol.classId] = classSymbol
 	}
 
 	private fun buildClass(node: NodeType) = FirRegularClassSymbol(
-		classId = classId(node.namespace ?: "", node.name)
+		classId = classId(node.namespace, node.name)
 	).also { classSymbol ->
 		buildRegularClass {
 			moduleData = firModuleData
 			origin = FirDeclarationOrigin.Library
-			typeParameters
 			status = FirResolvedDeclarationStatusImpl(
 				Visibilities.Public,
 				Modality.FINAL,
@@ -210,7 +219,7 @@ class ClrSymbolProvider(
 		}
 		clrSymbolNamesProvider.registerClassName(classSymbol.packageFqName(), classSymbol.name)
 		classPackages.getOrPut(
-			key = node.namespace ?: "",
+			key = node.namespace,
 			defaultValue = { mutableListOf() }
 		) += classSymbol.classId
 		classSymbols[classSymbol.classId] = classSymbol
@@ -247,7 +256,7 @@ class ClrSymbolProvider(
 			symbol = classSymbol
 		}
 		classPackages.getOrPut(
-			key = node.namespace ?: "",
+			key = node.namespace,
 			defaultValue = { mutableListOf() }
 		) += classSymbol.classId
 		classSymbols[classSymbol.classId] = classSymbol
@@ -264,7 +273,11 @@ class ClrSymbolProvider(
 				Modality.FINAL,
 				EffectiveVisibility.Public
 			)
-			returnTypeRef = resolveFirTypeRefForClr(classId.asString(), true)
+			returnTypeRef = resolveFirTypeRefForClr(
+				namespace = classId.packageFqName.asString(),
+				name = classId.shortClassName.asString(),
+				isReturnPosition = true
+			)
 			if (!node.isStatic) {
 				dispatchReceiverType = ConeClassLikeTypeImpl(
 					classId.toLookupTag(),
@@ -292,7 +305,31 @@ class ClrSymbolProvider(
 				Modality.FINAL,
 				EffectiveVisibility.Public
 			)
-			returnTypeRef = resolveFirTypeRefForClr(node.returnType.fullName, true)
+			returnTypeRef = when {
+				node.attributes.mapNotNull { it.type }.any {
+					it.match("System.Diagnostics.CodeAnalysis", "DoesNotReturnAttribute ")
+				} -> buildResolvedTypeRef {
+					coneType = ConeClassLikeTypeImpl(
+						classId("kotlin", "Nothing").toLookupTag(),
+						emptyArray(),
+						false
+					)
+				}
+
+				node.returnType.isClass -> resolveFirTypeRefForClr(
+					namespace = node.returnType.namespace ?: "",
+					name = node.returnType.name,
+					isReturnPosition = true
+				)
+
+				else -> buildResolvedTypeRef {
+					coneType = ConeClassLikeTypeImpl(
+						classId("kotlin", "Any").toLookupTag(),
+						emptyArray(),
+						false
+					)
+				}
+			}
 
 			dispatchReceiverType = ConeClassLikeTypeImpl(
 				lookupTag = classId.toLookupTag(),
@@ -301,6 +338,7 @@ class ClrSymbolProvider(
 			)
 
 			val isExtension = node.attributes
+				.mapNotNull { it.type }
 				.any { it.match("kotlin.clr", "KotlinExtension") }
 			valueParameters += node.parameters
 				.drop(
@@ -325,8 +363,8 @@ class ClrSymbolProvider(
 			}
 			name = Name.identifier(node.name)
 			symbol = functionSymbol
-			typeParameters += node.genericArguments
-				.map { buildTypeParameter(it, functionSymbol).fir }
+			/*typeParameters += node.genericArguments
+				.map { buildTypeParameter(it, functionSymbol).fir }*/
 		}
 		clrSymbolNamesProvider.registerCallableName(functionSymbol.packageFqName(), functionSymbol.name)
 		functionPackages.getOrPut(
@@ -350,7 +388,31 @@ class ClrSymbolProvider(
 				Modality.FINAL,
 				EffectiveVisibility.Public
 			)
-			returnTypeRef = resolveFirTypeRefForClr(node.returnType.fullName, true)
+			returnTypeRef = when {
+				node.attributes.mapNotNull { it.type }.any {
+					it.match("System.Diagnostics.CodeAnalysis", "DoesNotReturnAttribute ")
+				} -> buildResolvedTypeRef {
+					coneType = ConeClassLikeTypeImpl(
+						classId("kotlin", "Nothing").toLookupTag(),
+						emptyArray(),
+						false
+					)
+				}
+
+				node.returnType.isClass -> resolveFirTypeRefForClr(
+					namespace = node.returnType.namespace ?: "",
+					name = node.returnType.name,
+					isReturnPosition = true
+				)
+
+				else -> buildResolvedTypeRef {
+					coneType = ConeClassLikeTypeImpl(
+						classId("kotlin", "Any").toLookupTag(),
+						emptyArray(),
+						false
+					)
+				}
+			}
 
 			valueParameters += node.parameters.map { buildValueParameter(it, functionSymbol).fir }
 			name = Name.identifier(node.name)
@@ -367,8 +429,8 @@ class ClrSymbolProvider(
 					argumentMapping = FirEmptyAnnotationArgumentMapping
 				}
 			}
-			typeParameters += node.genericArguments
-				.map { buildTypeParameter(it, functionSymbol).fir }
+			/*typeParameters += node.genericArguments
+				.map { buildTypeParameter(it, functionSymbol).fir }*/
 		}
 	}
 
@@ -379,15 +441,28 @@ class ClrSymbolProvider(
 			buildValueParameter {
 				moduleData = firModuleData
 				origin = FirDeclarationOrigin.Library
-				returnTypeRef = resolveFirTypeRefForClr(node.type.fullName, true)
+				returnTypeRef = when {
+					node.type.isClass -> resolveFirTypeRefForClr(
+						namespace = node.type.namespace ?: "",
+						name = node.type.name,
+						isReturnPosition = true
+					)
+
+					else -> buildResolvedTypeRef {
+						coneType = ConeClassLikeTypeImpl(
+							classId("kotlin", "Any").toLookupTag(),
+							emptyArray(),
+							false
+						)
+					}
+				}
 				name = parameterSymbol.callableId.callableName
 				symbol = parameterSymbol
 				if (node.hasDefaultValue) {
 					defaultValue = FirStub
 				}
 				containingDeclarationSymbol = containingSymbol
-				isVararg = node.attributes
-					.any { it.match("kotlin.clr", "KotlinVararg") }
+				isVararg = node.isParams
 			}
 		}
 
@@ -411,71 +486,51 @@ class ClrSymbolProvider(
 	}
 
 	private fun resolveFirTypeRefForClr(
-		clrTypeName: String,
+		namespace: String,
+		name: String,
 		isReturnPosition: Boolean = false,
 	): FirResolvedTypeRef {
-		val (classId, isPrimitiveOrKnownValueType) = when (clrTypeName) {
-			"System.Void" -> StandardClassIds.Unit to true
-			"System.String" -> StandardClassIds.String to false
-			"System.Boolean" -> StandardClassIds.Boolean to true
-			"System.Char" -> StandardClassIds.Char to true
-			"System.Byte" -> StandardClassIds.Byte to true
-			"System.SByte" -> StandardClassIds.Byte to true
-			"System.Int16" -> StandardClassIds.Short to true
-			"System.UInt16" -> StandardClassIds.UShort to true
-			"System.Int32" -> StandardClassIds.Int to true
-			"System.UInt32" -> StandardClassIds.UInt to true
-			"System.Int64" -> StandardClassIds.Long to true
-			"System.UInt64" -> StandardClassIds.ULong to true
-			"System.Single" -> StandardClassIds.Float to true
-			"System.Double" -> StandardClassIds.Double to true
-			"System.Object" -> StandardClassIds.Any to false
-			else -> {
-				val fqNameParts = clrTypeName.split('.', '+')
-				if (fqNameParts.isNotEmpty()) {
-					val name = Name.identifier(fqNameParts.last())
-					val pkgSegments = fqNameParts.dropLast(1)
-					val pkgName = when (pkgSegments.isEmpty() && typeCacheContainsTopLevel(fqNameParts.last())) {
-						true -> findNamespaceForType(fqNameParts.last()) ?: ""
-						else -> pkgSegments.joinToString(".")
-					}
-					ClassId(FqName(pkgName), name) to false
-				} else {
-					StandardClassIds.Any to false
+		try {
+			val (classId, isPrimitiveOrKnownValueType) = when (namespace) {
+				"System" -> when (name) {
+					"Void" -> StandardClassIds.Unit to true
+					"String" -> StandardClassIds.String to false
+					"Boolean" -> StandardClassIds.Boolean to true
+					"Char" -> StandardClassIds.Char to true
+					"Byte" -> StandardClassIds.Byte to true
+					"SByte" -> StandardClassIds.Byte to true
+					"Int16" -> StandardClassIds.Short to true
+					"UInt16" -> StandardClassIds.UShort to true
+					"Int32" -> StandardClassIds.Int to true
+					"UInt32" -> StandardClassIds.UInt to true
+					"Int64" -> StandardClassIds.Long to true
+					"UInt64" -> StandardClassIds.ULong to true
+					"Single" -> StandardClassIds.Float to true
+					"Double" -> StandardClassIds.Double to true
+					"Object" -> StandardClassIds.Any to false
+					else -> classId(namespace, name) to false
 				}
+
+				else -> classId(namespace, name) to false
 			}
-		}
 
-		val isNullable = when {
-			isReturnPosition && classId == StandardClassIds.Unit -> false
-			isPrimitiveOrKnownValueType -> false
-			else -> true
-		}
-
-		return buildResolvedTypeRef {
-			coneType = ConeClassLikeTypeImpl(
-				classId.toLookupTag(),
-				emptyArray<ConeTypeProjection>(),
-				isNullable
-			)
-		}
-	}
-
-	private fun typeCacheContainsTopLevel(typeName: String): Boolean {
-		return classPackages.values.any { classIds ->
-			classIds.any { it.shortClassName.asString() == typeName && it.packageFqName.asString() == "" }
-		}
-	}
-
-	private fun findNamespaceForType(typeName: String): String? {
-		classPackages.forEach { (namespace, types) ->
-			val found = types.any {
-				it.shortClassName.asString() == typeName
-						|| it.shortClassName.asString().substringAfterLast('.') == typeName
+			val isNullable = when {
+				isReturnPosition && classId == StandardClassIds.Unit -> false
+				isPrimitiveOrKnownValueType -> false
+				else -> true
 			}
-			if (found) return namespace
+
+			return buildResolvedTypeRef {
+				coneType = ConeClassLikeTypeImpl(
+					classId.toLookupTag(),
+					emptyArray<ConeTypeProjection>(),
+					isNullable
+				)
+			}
+		} catch (e: Throwable) {
+			println("exception on $namespace $name $isReturnPosition")
+			throw e
 		}
-		return null
 	}
 
 	@FirSymbolProviderInternals

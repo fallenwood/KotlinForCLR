@@ -36,7 +36,7 @@ class ClrAssemblyFileFinder(
 
 	// 将NodeType转换为虚拟文件
 	private fun createVirtualFileForType(assembly: NodeAssembly, type: NodeType): VirtualFile {
-		val packageName = type.namespace?.ifEmpty { "" }
+		val packageName = type.namespace
 		val className = type.name
 
 		return ClrAssemblyVirtualFile(
