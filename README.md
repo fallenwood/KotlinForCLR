@@ -14,7 +14,7 @@
     - `MainCLR.kt` Kotlin/CLR 编译入口
     - `MainJVM.kt` 官方 Kotlin/JVM 编译入口
 - `csharp` C# 部分
-  - `AssemblyResolver` 使用 C# 基于 Assembly API 实现的程序集解析器, 用于解析 .dll 文件并传递给 Kotlin/CLR 编译器
+  - `AssemblyResolver` 使用 C# 基于 Roslyn API 实现的程序集解析器, 用于解析 .dll 文件并传递给 Kotlin/CLR 编译器
   - `kotlin-stdlib` Kotlin 标准库的 C# 实现, 用于提供 Kotlin 标准库的支持
   - `KotlinCLR` 一个常规的 C# 项目, 用于测试和演示
   - `KotlinCLR/gen` 包含从 `kotlin` 编译而来的 C# 代码
@@ -51,7 +51,7 @@
 2. 编写 Kotlin/CLR 后端编译器将 Kotlin IR 降级并生成 C# 源码
 3. 使用 C# 编写的 AssemblyResolver 解析 .dll 文件, 并将其传递给 Kotlin/CLR 编译器
 4. 使用 C# 编写的标准库和 AssemblyResolver 为 Kotlin/CLR 提供标准库
-5. 通过 ClrSymbolProvider 提供 C# 的符号解析, 使得 Kotlin/CLR 可以使用 C# 的类型和方法
+5. 通过 ClrSymbolProvider 提供 C# 的符号解析, 使得 Kotlin/CLR 可以使用 .NET 的类型和方法
 
 ## 为什么编译到 C# 而不是直接编译到 CIL?
 短期内编译到 C# 可以更快见效, 性价比更高, 未来会直接生成 CIL
