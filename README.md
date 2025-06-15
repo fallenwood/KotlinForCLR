@@ -1,8 +1,8 @@
-# Kotlin CLR Backend Compiler
+# KFC
 
-<img src=".idea/icon.png" style="width: 256px; height: 256px"  alt="Icon"/>
+<img src="img/KFC.png" style="width: 512; height: 256px" alt="KFC"/>
 
-这是一个 Kotlin CLR 后端编译器, 旨在将 Kotlin 代码编译为 .NET CIL, 使得 Kotlin 开发者可以在 .NET 平台上使用 Kotlin 语言进行开发
+这是一个 Kotlin/CLR 编译器, 旨在将 Kotlin 代码编译为 .NET CIL, 使得 Kotlin 开发者可以在 .NET 平台上使用 Kotlin 语言进行开发
 
 [更多介绍](https://juejin.cn/post/7512779184029679666)<br>
 [交流群](https://qm.qq.com/q/ed5aIJqOrK)
@@ -25,7 +25,7 @@
 - `stdlib` Kotlin/CLR 编写的标准库, 暂未使用, 作为未来的标准库实现
 
 ## 使用
-1. 前往 [Actions(非稳定版)](https://github.com/Nyayurin/KotlinCLRBackendCompiler/actions) / [Release(稳定版)](https://github.com/Nyayurin/KotlinCLRBackendCompiler/releases) 下载编译器成品(zip/tar)和 `Kotlin-home`
+1. 前往 [Actions(非稳定版)](https://github.com/Nyayurin/KotlinForCLR/actions) / [Release(稳定版)](https://github.com/Nyayurin/KotlinForCLR/releases) 下载编译器成品(zip/tar)和 `Kotlin-home`
 2. 解压编译器, 进入 bin 目录, 在 bin 目录下打开终端
 3. 运行 compiler 脚本并传递参数
 4. 参数为需要编译的 kotlin 源码/目录

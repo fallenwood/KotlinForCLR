@@ -11,4 +11,4 @@ plugins {
 
 include(":compiler")
 
-rootProject.name = "KotlinCLRBackendCompiler"
+rootProject.name = "KotlinForCLR"
