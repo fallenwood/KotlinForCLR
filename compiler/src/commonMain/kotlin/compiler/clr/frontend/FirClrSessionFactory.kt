@@ -16,7 +16,6 @@
 
 package compiler.clr.frontend
 
-import compiler.clr.NodeAssembly
 import org.jetbrains.kotlin.config.AnalysisFlags
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.fir.*

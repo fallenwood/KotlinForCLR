@@ -162,7 +162,14 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 
 		// 使用AssemblyResolver解析DLL
 		val assemblies = dllPaths
-			.map { resolveAssembly(configuration.get(CLRConfigurationKeys.ASSEMBLY_RESOLVER)!!.absolutePath, it.absolutePath) }
+			.map { it.absolutePath }
+			.map {
+				resolveAssembly(
+					programPath = configuration.get(CLRConfigurationKeys.ASSEMBLY_RESOLVER)!!.absolutePath,
+					assemblies = dllPaths.map(File::getAbsolutePath),
+					assembly = it
+				)
+			}
 			.associateBy { it.name }
 
 		// 创建依赖列表

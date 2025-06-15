@@ -16,6 +16,8 @@
 
 package compiler.clr
 
+import compiler.clr.frontend.NodeAssembly
+import compiler.clr.frontend.NodeType
 import org.jetbrains.kotlin.com.intellij.openapi.vfs.VirtualFile
 import org.jetbrains.kotlin.com.intellij.openapi.vfs.VirtualFileListener
 import org.jetbrains.kotlin.com.intellij.openapi.vfs.VirtualFileSystem

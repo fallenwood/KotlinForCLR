@@ -16,7 +16,6 @@
 
 package compiler.clr.frontend
 
-import compiler.clr.NodeAssembly
 import org.jetbrains.kotlin.fir.FirSessionComponent
 import org.jetbrains.kotlin.fir.NoMutableState
 

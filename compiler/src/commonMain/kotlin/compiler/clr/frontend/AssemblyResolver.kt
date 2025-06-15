@@ -14,13 +14,14 @@
    limitations under the License.
  */
 
-package compiler.clr
+package compiler.clr.frontend
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-fun resolveAssembly(programPath: String, assembly: String): NodeAssembly {
-	val process = ProcessBuilder("dotnet", "\"$programPath\"", "\"$assembly\"")
+fun resolveAssembly(programPath: String, assemblies: List<String>, assembly: String): NodeAssembly {
+	println("processing: $assembly")
+	val process = ProcessBuilder("dotnet", "\"$programPath\"", "\"${assemblies.joinToString(";")}\" \"$assembly\"")
 		.start()
 	val json = process.inputReader(Charsets.UTF_8).use {
 		it.readText()
@@ -28,7 +29,7 @@ fun resolveAssembly(programPath: String, assembly: String): NodeAssembly {
 	return try {
 		Json.decodeFromString<NodeAssembly>(json)
 	} catch (e: Exception) {
-		println("exception: dotnet \"$programPath\" \"$assembly\"")
+		println("exception: dotnet \"$programPath\" \"${assemblies.joinToString(";")}\" \"$assembly\"")
 		println(json)
 		throw e
 	}
@@ -55,6 +56,7 @@ data class NodeType(
 	val methods: List<NodeMethod>,
 	val nestedTypes: List<NodeType>,
 	val properties: List<NodeProperty>,
+	val typeParameters: List<NodeTypeParameter>,
 	val isAbstract: Boolean,
 	val isArray: Boolean,
 	val isClass: Boolean,
@@ -100,7 +102,7 @@ data class NodeMethod(
 	val name: String,
 	val returnType: NodeTypeReference,
 	val attributes: List<NodeAttribute>,
-//	val typeArguments: List<String>,
+	val typeParameters: List<NodeTypeParameter>,
 	val parameters: List<NodeParameter>,
 	val isAbstract: Boolean,
 	val isAssembly: Boolean,
@@ -125,18 +127,26 @@ data class NodeParameter(
 ) : AssemblyNode()
 
 @Serializable
+data class NodeTypeParameter(
+	val name: String,
+	val isOut: Boolean,
+	val isIn: Boolean,
+	val isInType: Boolean,
+	val isInMethod: Boolean,
+) : AssemblyNode()
+
+@Serializable
 data class NodeAttribute(
-	val type: NodeTypeReference?
+	val type: NodeTypeReference?,
 ) : AssemblyNode()
 
 @Serializable
 data class NodeTypeReference(
 	val namespace: String?,
 	val name: String,
-	val isClass: Boolean,
-	val isPointer: Boolean,
-	val isArray: Boolean,
-//	val typeParameters: List<NodeTypeReference>?,
+	val typeKind: Int,
+	val typeParameter: NodeTypeParameter?,
+	val typeParameters: List<NodeTypeParameter>?,
 ) : AssemblyNode() {
 	fun match(namespace: String, name: String) = this.namespace == namespace && this.name == name
 	fun match(name: String) = this.namespace == null && this.name == name

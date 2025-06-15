@@ -16,7 +16,6 @@
 
 package compiler.clr.frontend
 
-import compiler.clr.*
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.EffectiveVisibility
 import org.jetbrains.kotlin.descriptors.Modality
@@ -25,6 +24,7 @@ import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.analysis.checkers.hasAnnotationOrInsideAnnotatedClass
 import org.jetbrains.kotlin.fir.builder.buildPackageDirective
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
+import org.jetbrains.kotlin.fir.declarations.FirTypeParameter
 import org.jetbrains.kotlin.fir.declarations.builder.*
 import org.jetbrains.kotlin.fir.declarations.impl.FirDeclarationStatusImpl
 import org.jetbrains.kotlin.fir.declarations.impl.FirResolvedDeclarationStatusImpl
@@ -276,7 +276,8 @@ class ClrSymbolProvider(
 			returnTypeRef = resolveFirTypeRefForClr(
 				namespace = classId.packageFqName.asString(),
 				name = classId.shortClassName.asString(),
-				isReturnPosition = true
+				isReturnPosition = true,
+				typeParameters = emptyList()
 			)
 			if (!node.isStatic) {
 				dispatchReceiverType = ConeClassLikeTypeImpl(
@@ -305,6 +306,10 @@ class ClrSymbolProvider(
 				Modality.FINAL,
 				EffectiveVisibility.Public
 			)
+
+			typeParameters += node.typeParameters
+				.map { buildTypeParameter(it, functionSymbol).fir }
+
 			returnTypeRef = when {
 				node.attributes.mapNotNull { it.type }.any {
 					it.match("System.Diagnostics.CodeAnalysis", "DoesNotReturnAttribute ")
@@ -316,10 +321,15 @@ class ClrSymbolProvider(
 					)
 				}
 
-				node.returnType.isClass -> resolveFirTypeRefForClr(
+				node.returnType.typeKind in listOf(2, 7) -> resolveFirTypeRefForClr(
 					namespace = node.returnType.namespace ?: "",
 					name = node.returnType.name,
-					isReturnPosition = true
+					isReturnPosition = true,
+					typeParameters = node.typeParameters.map {
+						typeParameters.find { typeParameter ->
+							typeParameter.name.asString() == it.name
+						}!!
+					}
 				)
 
 				else -> buildResolvedTypeRef {
@@ -347,7 +357,7 @@ class ClrSymbolProvider(
 						false -> 0
 					}
 				)
-				.map { buildValueParameter(it, functionSymbol).fir }
+				.map { buildValueParameter(it, functionSymbol, typeParameters).fir }
 			if (isExtension) {
 				receiverParameter = FirReceiverParameterSymbol().also { parameterSymbol ->
 					buildReceiverParameter {
@@ -363,8 +373,6 @@ class ClrSymbolProvider(
 			}
 			name = Name.identifier(node.name)
 			symbol = functionSymbol
-			/*typeParameters += node.genericArguments
-				.map { buildTypeParameter(it, functionSymbol).fir }*/
 		}
 		clrSymbolNamesProvider.registerCallableName(functionSymbol.packageFqName(), functionSymbol.name)
 		functionPackages.getOrPut(
@@ -388,6 +396,10 @@ class ClrSymbolProvider(
 				Modality.FINAL,
 				EffectiveVisibility.Public
 			)
+
+			typeParameters += node.typeParameters
+				.map { buildTypeParameter(it, functionSymbol).fir }
+
 			returnTypeRef = when {
 				node.attributes.mapNotNull { it.type }.any {
 					it.match("System.Diagnostics.CodeAnalysis", "DoesNotReturnAttribute ")
@@ -399,10 +411,15 @@ class ClrSymbolProvider(
 					)
 				}
 
-				node.returnType.isClass -> resolveFirTypeRefForClr(
+				node.returnType.typeKind in listOf(2, 7) -> resolveFirTypeRefForClr(
 					namespace = node.returnType.namespace ?: "",
 					name = node.returnType.name,
-					isReturnPosition = true
+					isReturnPosition = true,
+					typeParameters = node.typeParameters.map {
+						typeParameters.find { typeParameter ->
+							typeParameter.name.asString() == it.name
+						}!!
+					}
 				)
 
 				else -> buildResolvedTypeRef {
@@ -414,7 +431,7 @@ class ClrSymbolProvider(
 				}
 			}
 
-			valueParameters += node.parameters.map { buildValueParameter(it, functionSymbol).fir }
+			valueParameters += node.parameters.map { buildValueParameter(it, functionSymbol, typeParameters).fir }
 			name = Name.identifier(node.name)
 			symbol = functionSymbol
 			if (node.isStatic) {
@@ -429,49 +446,81 @@ class ClrSymbolProvider(
 					argumentMapping = FirEmptyAnnotationArgumentMapping
 				}
 			}
-			/*typeParameters += node.genericArguments
-				.map { buildTypeParameter(it, functionSymbol).fir }*/
 		}
 	}
 
-	private fun buildValueParameter(node: NodeParameter, containingSymbol: FirFunctionSymbol<*>) =
-		FirValueParameterSymbol(
-			name = Name.identifier(node.name!!)
-		).also { parameterSymbol ->
-			buildValueParameter {
-				moduleData = firModuleData
-				origin = FirDeclarationOrigin.Library
-				returnTypeRef = when {
-					node.type.isClass -> resolveFirTypeRefForClr(
-						namespace = node.type.namespace ?: "",
-						name = node.type.name,
-						isReturnPosition = true
-					)
-
-					else -> buildResolvedTypeRef {
-						coneType = ConeClassLikeTypeImpl(
-							classId("kotlin", "Any").toLookupTag(),
-							emptyArray(),
-							false
+	private fun buildValueParameter(
+		node: NodeParameter,
+		containingSymbol: FirFunctionSymbol<*>,
+		typeParameters: List<FirTypeParameter>,
+	) = FirValueParameterSymbol(
+		name = Name.identifier(node.name!!)
+	).also { parameterSymbol ->
+		buildValueParameter {
+			moduleData = firModuleData
+			origin = FirDeclarationOrigin.Library
+			returnTypeRef = when {
+				node.type.typeParameter != null -> {
+					buildResolvedTypeRef {
+						coneType = ConeTypeVariableType(
+							false,
+							typeConstructor = ConeTypeVariableTypeConstructor(
+								node.type.typeParameter.name,
+								typeParameters.find { it.name.asString() == node.type.typeParameter.name }?.let {
+									ConeTypeParameterLookupTag(it.symbol)
+								}
+							)
 						)
 					}
 				}
-				name = parameterSymbol.callableId.callableName
-				symbol = parameterSymbol
-				if (node.hasDefaultValue) {
-					defaultValue = FirStub
-				}
-				containingDeclarationSymbol = containingSymbol
-				isVararg = node.isParams
-			}
-		}
 
-	private fun buildTypeParameter(identifier: String, containingSymbol: FirFunctionSymbol<*>) =
+				node.type.typeKind in listOf(2, 7) -> resolveFirTypeRefForClr(
+					namespace = node.type.namespace ?: "",
+					name = node.type.name,
+					isReturnPosition = true,
+					typeParameters = emptyList()
+				)
+
+				node.type.typeKind == 1 -> buildResolvedTypeRef {
+					coneType = ConeClassLikeTypeImpl(
+						classId("kotlin", "Array").toLookupTag(),
+						typeParameters.map {
+							ConeTypeVariableType(
+								false,
+								ConeTypeVariableTypeConstructor(
+									it.name.asString(),
+									ConeTypeParameterLookupTag(it.symbol)
+								)
+							)
+						}.toTypedArray(),
+						false
+					)
+				}
+
+				else -> buildResolvedTypeRef {
+					coneType = ConeClassLikeTypeImpl(
+						classId("kotlin", "Any").toLookupTag(),
+						emptyArray(),
+						false
+					)
+				}
+			}
+			name = parameterSymbol.callableId.callableName
+			symbol = parameterSymbol
+			if (node.hasDefaultValue) {
+				defaultValue = FirStub
+			}
+			containingDeclarationSymbol = containingSymbol
+			isVararg = node.isParams
+		}
+	}
+
+	private fun buildTypeParameter(node: NodeTypeParameter, containingSymbol: FirFunctionSymbol<*>) =
 		FirTypeParameterSymbol().also { parameterSymbol ->
 			buildTypeParameter {
 				moduleData = firModuleData
 				origin = FirDeclarationOrigin.Library
-				name = Name.identifier(identifier)
+				name = Name.identifier(node.name)
 				symbol = parameterSymbol
 				containingDeclarationSymbol = containingSymbol
 				variance = Variance.INVARIANT
@@ -488,43 +537,56 @@ class ClrSymbolProvider(
 	private fun resolveFirTypeRefForClr(
 		namespace: String,
 		name: String,
-		isReturnPosition: Boolean = false,
+		isReturnPosition: Boolean,
+		typeParameters: List<FirTypeParameter>,
 	): FirResolvedTypeRef {
 		try {
-			val (classId, isPrimitiveOrKnownValueType) = when (namespace) {
+			val classId = when (namespace) {
 				"System" -> when (name) {
-					"Void" -> StandardClassIds.Unit to true
-					"String" -> StandardClassIds.String to false
-					"Boolean" -> StandardClassIds.Boolean to true
-					"Char" -> StandardClassIds.Char to true
-					"Byte" -> StandardClassIds.Byte to true
-					"SByte" -> StandardClassIds.Byte to true
-					"Int16" -> StandardClassIds.Short to true
-					"UInt16" -> StandardClassIds.UShort to true
-					"Int32" -> StandardClassIds.Int to true
-					"UInt32" -> StandardClassIds.UInt to true
-					"Int64" -> StandardClassIds.Long to true
-					"UInt64" -> StandardClassIds.ULong to true
-					"Single" -> StandardClassIds.Float to true
-					"Double" -> StandardClassIds.Double to true
-					"Object" -> StandardClassIds.Any to false
-					else -> classId(namespace, name) to false
+					"Attribute" -> StandardClassIds.Annotation
+					"Object" -> StandardClassIds.Any
+					"Array" -> StandardClassIds.Array
+					"Void" -> StandardClassIds.Unit
+					"Boolean" -> StandardClassIds.Boolean
+					"Char" -> StandardClassIds.Char
+					"Enum" -> StandardClassIds.Enum
+					"SByte" -> StandardClassIds.Byte
+					"Int16" -> StandardClassIds.Short
+					"Int32" -> StandardClassIds.Int
+					"Int64" -> StandardClassIds.Long
+					"Single" -> StandardClassIds.Float
+					"Double" -> StandardClassIds.Double
+					"String" -> StandardClassIds.String
+					"Exception" -> StandardClassIds.Throwable
+					else -> classId(namespace, name)
 				}
 
-				else -> classId(namespace, name) to false
-			}
+				"System.Collections.Generic" -> when (name) {
+					"IReadOnlyList" -> StandardClassIds.List
+					"IList" -> StandardClassIds.MutableList
+					"IReadOnlySet" -> StandardClassIds.Set
+					"ISet" -> StandardClassIds.MutableSet
+					"IReadOnlyDictionary" -> StandardClassIds.Map
+					"IDictionary" -> StandardClassIds.MutableMap
+					else -> classId(namespace, name)
+				}
 
-			val isNullable = when {
-				isReturnPosition && classId == StandardClassIds.Unit -> false
-				isPrimitiveOrKnownValueType -> false
-				else -> true
+				else -> classId(namespace, name)
 			}
 
 			return buildResolvedTypeRef {
 				coneType = ConeClassLikeTypeImpl(
 					classId.toLookupTag(),
-					emptyArray<ConeTypeProjection>(),
-					isNullable
+					typeParameters.map {
+						ConeTypeVariableType(
+							false,
+							ConeTypeVariableTypeConstructor(
+								it.name.asString(),
+								ConeTypeParameterLookupTag(it.symbol)
+							)
+						)
+					}.toTypedArray(),
+					false
 				)
 			}
 		} catch (e: Throwable) {

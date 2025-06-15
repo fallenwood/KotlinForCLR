@@ -1,12 +1,16 @@
 FILE: Main.kt
-    public? final? fun maxOf(a: Int, b: Int): <implicit> {
-        ^maxOf when () {
-            CMP(>, a#.compareTo#(b#)) ->  {
-                a#
+    public? final? fun main(): R|kotlin/Unit| {
+        lval items: <implicit> = listOf#(String(apple), String(banana), String(kiwifruit))
+         {
+            lval <iterator>: <implicit> = items#.iterator#()
+            while(R|<local>/<iterator>|.hasNext#()) {
+                lval item: <implicit> = R|<local>/<iterator>|.next#()
+                 {
+                    println#(item#)
+                }
+
             }
-            else ->  {
-                b#
-            }
+
         }
 
     }

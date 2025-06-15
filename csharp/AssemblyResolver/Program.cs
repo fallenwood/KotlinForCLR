@@ -22,12 +22,26 @@ namespace AssemblyResolver;
 
 public static class Program {
 	public static void Main(string[] args) {
-		var reference = MetadataReference.CreateFromFile(args[0]);
-		var compilation = CSharpCompilation.Create("Analysis")
-			.AddReferences(reference);
+		var libraries = args[0].Split(";");
+		MetadataReference? reference = null;
+		var references = libraries
+			.Select(it => {
+				if (it != args[1]) return MetadataReference.CreateFromFile(it);
+				reference = MetadataReference.CreateFromFile(it);
+				return reference;
+			})
+			.ToList();
+		var compilation = CSharpCompilation.Create(
+			assemblyName: "Analysis",
+			references: references
+		);
 
-		if (compilation.GetAssemblyOrModuleSymbol(reference) is IAssemblySymbol assemblySymbol) {
+		var symbol = compilation.GetAssemblyOrModuleSymbol(reference!);
+
+		if (symbol is IAssemblySymbol assemblySymbol) {
 			Console.WriteLine(JsonSerializer.Serialize(NodeAssembly.from(assemblySymbol)));
+		} else {
+			Console.WriteLine($"Unknown symbol: {symbol?.GetType()}");
 		}
 	}
 }
@@ -63,6 +77,7 @@ public record NodeType(
 	List<NodeMethod> methods,
 	List<NodeType> nestedTypes,
 	List<NodeProperty> properties,
+	List<NodeTypeParameter> typeParameters,
 	bool isAbstract,
 	bool isArray,
 	bool isClass,
@@ -113,6 +128,7 @@ public record NodeType(
 			.Cast<IPropertySymbol>()
 			.Select(NodeProperty.from)
 			.ToList(),
+		typeParameters: symbol.TypeParameters.Select(NodeTypeParameter.from).ToList(),
 		isAbstract: symbol.IsAbstract,
 		isArray: symbol.TypeKind == TypeKind.Array,
 		isClass: symbol.TypeKind == TypeKind.Class,
@@ -172,7 +188,7 @@ public record NodeMethod(
 	string name,
 	NodeTypeReference returnType,
 	List<NodeAttribute> attributes,
-	// List<string> typeArguments,
+	List<NodeTypeParameter> typeParameters,
 	List<NodeParameter> parameters,
 	bool isAbstract,
 	bool isAssembly,
@@ -187,7 +203,7 @@ public record NodeMethod(
 		name: symbol.Name,
 		returnType: NodeTypeReference.from(symbol.ReturnType),
 		attributes: symbol.GetAttributes().Select(NodeAttribute.from).ToList(),
-		// typeArguments: symbol.TypeArguments().Select(it => it.Name).ToList(),
+		typeParameters: symbol.TypeParameters.Select(NodeTypeParameter.from).ToList(),
 		parameters: symbol.Parameters.Select(NodeParameter.from).ToList(),
 		isAbstract: symbol.IsAbstract,
 		isAssembly: symbol.DeclaredAccessibility == Accessibility.Internal,
@@ -222,6 +238,22 @@ public record NodeParameter(
 	);
 }
 
+public record NodeTypeParameter(
+	string name,
+	bool isOut,
+	bool isIn,
+	bool isInType,
+	bool isInMethod
+) {
+	public static NodeTypeParameter from(ITypeParameterSymbol symbol) => new(
+		name: symbol.Name,
+		isOut: symbol.Variance == VarianceKind.Out,
+		isIn: symbol.Variance == VarianceKind.In,
+		isInType: symbol.TypeParameterKind == TypeParameterKind.Type,
+		isInMethod: symbol.TypeParameterKind == TypeParameterKind.Method
+	);
+}
+
 public record NodeAttribute(
 	NodeTypeReference? type
 ) {
@@ -233,16 +265,20 @@ public record NodeAttribute(
 public record NodeTypeReference(
 	string? @namespace,
 	string name,
-	bool isClass,
-	bool isPointer,
-	bool isArray
+	TypeKind typeKind,
+	NodeTypeParameter? typeParameter,
+	List<NodeTypeParameter>? typeParameters
 ) {
 	public static NodeTypeReference from(ITypeSymbol symbol) => new(
 		@namespace: symbol.ContainingNamespace?.ToDisplayString(),
 		name: symbol.Name,
-		isClass: symbol.TypeKind == TypeKind.Class,
-		isPointer: symbol.TypeKind == TypeKind.Pointer,
-		isArray: symbol.TypeKind == TypeKind.Array
+		typeKind: symbol.TypeKind,
+		typeParameter: symbol is ITypeParameterSymbol typeParameterSymbol
+			? NodeTypeParameter.from(typeParameterSymbol)
+			: null,
+		typeParameters: symbol is INamedTypeSymbol namedTypeSymbol
+			? namedTypeSymbol.TypeParameters.Select(NodeTypeParameter.from).ToList()
+			: null
 	);
 }
 

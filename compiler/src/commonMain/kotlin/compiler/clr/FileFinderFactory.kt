@@ -16,6 +16,7 @@
 
 package compiler.clr
 
+import compiler.clr.frontend.NodeAssembly
 import org.jetbrains.kotlin.com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
