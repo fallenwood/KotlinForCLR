@@ -1,9 +1,7 @@
+# KFC(Kotlin For CLR)
+
 <div style="text-align: center;">
-
-# KFC
-
-<img src="img/KFC.png" style="width: 512" alt="KFC" />
-
+  <img src="img/KFC.png" style="width: 512" alt="KFC" />
 </div>
 
 这是一个 Kotlin/CLR 编译器, 旨在将 Kotlin 代码编译为 .NET CIL, 使得 Kotlin 开发者可以在 .NET 平台上使用 Kotlin 语言进行开发
