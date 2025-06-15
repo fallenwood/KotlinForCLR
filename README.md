@@ -1,6 +1,6 @@
 # KFC
 
-<div align="center">
+<div style="text-align: center;">
   <img src="img/KFC.png" style="width: 512" alt="KFC" />
 </div>
 
