@@ -109,15 +109,7 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 					"kotlin.ranges",
 					"kotlin.sequences",
 					"kotlin.text",
-
 					"kotlin.clr",
-					"System",
-					"System.Collections.Generic",
-					"System.IO",
-					"System.Linq",
-					"System.Net.Http",
-					"System.Threading",
-					"System.Threading.Tasks",
 				).forEach { pack ->
 					if (
 						!it.imports.any { import ->

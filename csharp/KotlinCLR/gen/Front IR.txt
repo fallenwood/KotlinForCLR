@@ -1,16 +1,12 @@
 FILE: Main.kt
-    public final fun main(): R|kotlin/Unit| {
-        lval items: R|kotlin/collections/List<TypeVariable(T)>| = R|kotlin/collections/listOf<Inapplicable(INAPPLICABLE): kotlin/collections/listOf>#|<<ERROR TYPE REF: Cannot infer argument for type parameter T>>(vararg(String(apple), String(banana), String(kiwifruit)))
-         {
-            lval <iterator>: R|kotlin/collections/Iterator<out TypeVariable(E)>| = R|<local>/items|.R|kotlin/collections/List.iterator<Inapplicable(CONVENTION_ERROR): kotlin/collections/List.iterator>#|()
-            while(R|<local>/<iterator>|.R|kotlin/collections/Iterator.hasNext|()) {
-                lval item: R|TypeVariable(T)| = R|<local>/<iterator>|.R|kotlin/collections/Iterator.next|()
-                 {
-                    R|kotlin/io/println<Inapplicable(INAPPLICABLE): kotlin/io/println>#|(R|<local>/item|)
-                }
-
+    public final fun maxOf(a: R|kotlin/Int|, b: R|kotlin/Int|): R|kotlin/Int| {
+        ^maxOf when () {
+            CMP(>, R|<local>/a|.R|kotlin/Int.compareTo|(R|<local>/b|)) ->  {
+                R|<local>/a|
             }
-
+            else ->  {
+                R|<local>/b|
+            }
         }
 
     }

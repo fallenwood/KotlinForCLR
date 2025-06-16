@@ -321,7 +321,7 @@ class ClrSymbolProvider(
 					)
 				}
 
-				node.returnType.typeKind in listOf(2, 7) -> resolveFirTypeRefForClr(
+				node.returnType.typeKind in listOf(2, 7, 10) -> resolveFirTypeRefForClr(
 					namespace = node.returnType.namespace ?: "",
 					name = node.returnType.name,
 					isReturnPosition = true,
@@ -411,7 +411,7 @@ class ClrSymbolProvider(
 					)
 				}
 
-				node.returnType.typeKind in listOf(2, 7) -> resolveFirTypeRefForClr(
+				node.returnType.typeKind in listOf(2, 7, 10) -> resolveFirTypeRefForClr(
 					namespace = node.returnType.namespace ?: "",
 					name = node.returnType.name,
 					isReturnPosition = true,
@@ -474,7 +474,7 @@ class ClrSymbolProvider(
 					}
 				}
 
-				node.type.typeKind in listOf(2, 7) -> resolveFirTypeRefForClr(
+				node.type.typeKind in listOf(2, 7, 10) -> resolveFirTypeRefForClr(
 					namespace = node.type.namespace ?: "",
 					name = node.type.name,
 					isReturnPosition = true,

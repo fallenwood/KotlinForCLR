@@ -1,6 +1,1 @@
-fun main() {
-	val items = listOf<String>("apple", "banana", "kiwifruit")
-	for (item in items) {
-		println(item)
-	}
-}
+fun maxOf(a: Int, b: Int) = if (a > b) a else b
