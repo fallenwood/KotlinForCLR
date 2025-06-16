@@ -18,21 +18,52 @@ package compiler.clr.frontend
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
+import java.io.File
+import java.nio.file.Path
+import java.nio.file.Paths
+import kotlin.io.path.absolutePathString
 
-fun resolveAssembly(programPath: String, assemblies: List<String>, assembly: String): NodeAssembly {
+fun resolveAssembly(programPath: String, assemblies: List<String>, assembly: String, cachePath: Path, useCache: Boolean): NodeAssembly {
+	val filename = File(assembly).name + ".resolved"
+
+	val cacheFile = File(Paths.get(cachePath.absolutePathString(), filename).absolutePathString())
+
+	if (useCache && cacheFile.exists()) {
+		println("use cached: $assembly")
+		val stream = cacheFile.inputStream()
+		val string = stream.readAllBytes().toString(Charsets.UTF_8)
+		try {
+			return Json.decodeFromString<NodeAssembly>(string)
+		} catch (e: Exception) {
+			println("exception: decoding \"${cacheFile.absolutePath}\"")
+		}
+	}
+
 	println("processing: $assembly")
 	val process = ProcessBuilder("dotnet", "\"$programPath\"", "\"${assemblies.joinToString(";")}\" \"$assembly\"")
 		.start()
 	val json = process.inputReader(Charsets.UTF_8).use {
 		it.readText()
 	}
-	return try {
+	val resolved = try {
 		Json.decodeFromString<NodeAssembly>(json)
 	} catch (e: Exception) {
 		println("exception: dotnet \"$programPath\" \"${assemblies.joinToString(";")}\" \"$assembly\"")
 		println(json)
 		throw e
 	}
+
+	if (useCache) {
+		val stream = cacheFile.outputStream()
+		val writer = stream.writer(Charsets.UTF_8)
+		writer.write(json)
+		writer.flush()
+		writer.close()
+		stream.close()
+	}
+
+	return resolved
 }
 
 abstract class AssemblyNode
