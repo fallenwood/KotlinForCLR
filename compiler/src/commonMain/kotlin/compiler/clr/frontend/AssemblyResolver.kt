@@ -18,25 +18,38 @@ package compiler.clr.frontend
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromStream
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.io.path.absolutePathString
 
-fun resolveAssembly(programPath: String, assemblies: List<String>, assembly: String, cachePath: Path, useCache: Boolean): NodeAssembly {
+fun resolveAssembly(
+	programPath: String,
+	assemblies: List<String>,
+	assembly: String,
+	dotnetPath: String,
+	cacheSystemPath: Path,
+	cacheRootPath: Path,
+	cacheLevel: CacheLevel): NodeAssembly {
 	val filename = File(assembly).name + ".resolved"
+	val isSystemPackage = assembly.startsWith(dotnetPath)
+	val shouldCache = shouldCache(isSystemPackage, cacheLevel)
 
-	val cacheFile = File(Paths.get(cachePath.absolutePathString(), filename).absolutePathString())
+	val cacheFile = when (isSystemPackage) {
+		false -> Paths.get(cacheRootPath.absolutePathString(), filename)
+		true -> Paths.get(cacheSystemPath.absolutePathString(), filename)
+	}.let { File (it.absolutePathString())}
 
-	if (useCache && cacheFile.exists()) {
+	if (shouldCache && cacheFile.exists()) {
 		println("use cached: $assembly")
-		val stream = cacheFile.inputStream()
-		val string = stream.readAllBytes().toString(Charsets.UTF_8)
-		try {
-			return Json.decodeFromString<NodeAssembly>(string)
-		} catch (e: Exception) {
-			println("exception: decoding \"${cacheFile.absolutePath}\"")
+		cacheFile.inputStream().use { stream ->
+			val string = stream.readAllBytes().toString(Charsets.UTF_8)
+
+			try {
+				return Json.decodeFromString<NodeAssembly>(string)
+			} catch (e: Exception) {
+				println("exception: decoding \"${cacheFile.absolutePath}\"")
+			}
 		}
 	}
 
@@ -54,16 +67,29 @@ fun resolveAssembly(programPath: String, assemblies: List<String>, assembly: Str
 		throw e
 	}
 
-	if (useCache) {
-		val stream = cacheFile.outputStream()
-		val writer = stream.writer(Charsets.UTF_8)
-		writer.write(json)
-		writer.flush()
-		writer.close()
-		stream.close()
+	if (shouldCache) {
+		cacheFile.outputStream().use { stream ->
+			stream.writer(Charsets.UTF_8).use { writer ->
+				writer.write(json)
+			}
+		}
 	}
 
 	return resolved
+}
+
+private fun shouldCache(isSystemPackage: Boolean, cacheLavel: CacheLevel): Boolean {
+	return when (cacheLavel) {
+		CacheLevel.None -> false
+		CacheLevel.System -> isSystemPackage
+		CacheLevel.All -> true
+	}
+}
+
+enum class CacheLevel {
+	None,
+	System,
+	All,
 }
 
 abstract class AssemblyNode

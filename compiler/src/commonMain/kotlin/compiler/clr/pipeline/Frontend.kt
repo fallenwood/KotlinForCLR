@@ -57,10 +57,8 @@ import org.jetbrains.kotlin.load.kotlin.VirtualFileFinderFactory
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import java.io.File
-import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.stream.Collectors
-import kotlin.io.path.Path
 import kotlin.io.path.createDirectory
 import kotlin.io.path.exists
 
@@ -157,10 +155,16 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 	): Pair<DependencyListForCliModule, Map<String, NodeAssembly>> {
 		// 收集所有DLL路径
 		val dllPaths = configuration.clrDllRoots
+		val dotnetVersion = configuration.dotnetVersion
 
-		val cachePath = Paths.get(System.getProperty("user.home"), ".kfc")
-		if (!cachePath.exists()) {
-			cachePath.createDirectory()
+		val cacheRootPath = Paths.get(System.getProperty("user.home"), ".kfc")
+		if (!cacheRootPath.exists()) {
+			cacheRootPath.createDirectory()
+		}
+
+		val cacheSystemPath = Paths.get(System.getProperty("user.home"), ".kfc", dotnetVersion)
+		if (!cacheSystemPath.exists()) {
+			cacheSystemPath.createDirectory()
 		}
 
 		// 使用AssemblyResolver解析DLL
@@ -172,8 +176,10 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 					programPath = configuration.get(CLRConfigurationKeys.ASSEMBLY_RESOLVER)!!.absolutePath,
 					assemblies = dllPaths.map(File::getAbsolutePath),
 					assembly = it,
-					cachePath = cachePath,
-					useCache = true,
+					dotnetPath = configuration.dotnetHome ?: "<invalid dotnet home>",
+					cacheSystemPath = cacheSystemPath,
+					cacheRootPath = cacheRootPath,
+					cacheLevel = CacheLevel.System,
 				)
 			}
 			.collect(

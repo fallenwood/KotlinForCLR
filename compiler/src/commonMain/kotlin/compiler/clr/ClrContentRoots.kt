@@ -46,3 +46,9 @@ data class CSharpSourceRoot(override val file: File, val packagePrefix: String?)
 
 val CompilerConfiguration.clrDllRoots: List<File>
 	get() = getList(CLIConfigurationKeys.CONTENT_ROOTS).filterIsInstance<ClrDllRoot>().map(ClrContentRoot::file)
+
+val CompilerConfiguration.dotnetHome: String?
+	get() = get(CLRConfigurationKeys.DOTNET_HOME)?.absolutePath
+
+val CompilerConfiguration.dotnetVersion: String?
+	get() = get(CLRConfigurationKeys.DOTNET_VERSION)
