@@ -57,6 +57,7 @@ import org.jetbrains.kotlin.load.kotlin.VirtualFileFinderFactory
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import java.io.File
+import java.util.stream.Collectors
 
 object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipelineArtifact>(
 	name = "ClrFrontendPipelinePhase"
@@ -155,6 +156,7 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 		// 使用AssemblyResolver解析DLL
 		val assemblies = dllPaths
 			.map { it.absolutePath }
+			.parallelStream()
 			.map {
 				resolveAssembly(
 					programPath = configuration.get(CLRConfigurationKeys.ASSEMBLY_RESOLVER)!!.absolutePath,
@@ -162,7 +164,8 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 					assembly = it
 				)
 			}
-			.associateBy { it.name }
+			.collect(
+				Collectors.toMap({it.name}, {it}))
 
 		// 创建依赖列表
 		val binaryModuleData = BinaryModuleData.initialize(
