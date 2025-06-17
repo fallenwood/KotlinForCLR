@@ -17,9 +17,21 @@
 package compiler.clr.pipeline
 
 import compiler.EnvironmentConfigFiles
-import compiler.clr.*
+import compiler.clr.CLRConfigurationKeys
+import compiler.clr.ClrAssemblyFileFinderFactory
+import compiler.clr.ClrMetadataFinderFactory
+import compiler.clr.clrDllRoots
 import compiler.clr.frontend.*
 import compiler.clr.frontend.KotlinCoreEnvironment.Companion.configureProjectEnvironment
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.jetbrains.kotlin.cli.common.*
 import org.jetbrains.kotlin.cli.common.config.KotlinSourceRoot
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
@@ -153,16 +165,22 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 		val dllPaths = configuration.clrDllRoots
 
 		// 使用AssemblyResolver解析DLL
-		val assemblies = dllPaths
-			.map { it.absolutePath }
-			.map {
-				resolveAssembly(
-					programPath = configuration.get(CLRConfigurationKeys.ASSEMBLY_RESOLVER)!!.absolutePath,
-					assemblies = dllPaths.map(File::getAbsolutePath),
-					assembly = it
-				)
-			}
-			.associateBy { it.name }
+		val assemblies = runBlocking {
+			val scope = CoroutineScope(Dispatchers.IO)
+			dllPaths
+				.map { it.absolutePath }
+				.map {
+					scope.async {
+						resolveAssembly(
+							programPath = configuration.get(CLRConfigurationKeys.ASSEMBLY_RESOLVER)!!.absolutePath,
+							assemblies = dllPaths.map(File::getAbsolutePath),
+							assembly = it
+						)
+					}
+				}
+				.awaitAll()
+				.associateBy { it.name }
+		}
 
 		// 创建依赖列表
 		val binaryModuleData = BinaryModuleData.initialize(
