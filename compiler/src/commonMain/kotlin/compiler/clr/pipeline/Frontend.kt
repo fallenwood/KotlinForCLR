@@ -23,15 +23,7 @@ import compiler.clr.ClrMetadataFinderFactory
 import compiler.clr.clrDllRoots
 import compiler.clr.frontend.*
 import compiler.clr.frontend.KotlinCoreEnvironment.Companion.configureProjectEnvironment
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.jetbrains.kotlin.cli.common.*
 import org.jetbrains.kotlin.cli.common.config.KotlinSourceRoot
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
@@ -172,6 +164,7 @@ object Frontend : PipelinePhase<ConfigurationPipelineArtifact, ClrFrontendPipeli
 				.map {
 					scope.async {
 						resolveAssembly(
+							dotnetHome = configuration.get(CLRConfigurationKeys.DOTNET_HOME)!!.absolutePath,
 							programPath = configuration.get(CLRConfigurationKeys.ASSEMBLY_RESOLVER)!!.absolutePath,
 							assemblies = dllPaths.map(File::getAbsolutePath),
 							assembly = it

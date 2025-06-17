@@ -1,13 +1,10 @@
 import compiler.clr.CLRCompiler
 import compiler.clr.CLRCompilerArguments
-import java.io.File
 
 fun main() {
-	val out = File("..\\csharp\\KotlinCLR\\gen")
-	out.listFiles()?.forEach { it.delete() }
 	val arguments = CLRCompilerArguments().apply {
 		freeArgs += "../kotlin/src"
-		destination = out.absolutePath
+		destination = "..\\csharp\\KotlinCLR\\gen"
 		kotlinHome = "../home"
 		dotnetHome = "C:\\Program Files\\dotnet"
 		dotnetVersion = "9.0.5"

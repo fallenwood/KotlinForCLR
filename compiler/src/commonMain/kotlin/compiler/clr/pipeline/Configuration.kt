@@ -58,6 +58,12 @@ object Configuration : AbstractConfigurationPhase<CLRCompilerArguments>(
 			val collector = configuration.messageCollector
 			collector.report(LOGGING, "Configuring the compilation environment")
 
+			File(arguments.destination!!).run {
+				delete()
+				mkdirs()
+			}
+
+
 			if (!configuration.configureDotnet(arguments)) return
 			configuration.moduleName = "main"
 			configuration.configureStandardLibs(configuration.kotlinPaths, arguments)
