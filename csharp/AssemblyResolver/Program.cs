@@ -55,14 +55,14 @@ public record NodeAssembly(
 		types: makeTypes(symbol.GlobalNamespace)
 	);
 
-	private static List<NodeType> makeTypes(INamespaceSymbol symbol) => symbol.GetMembers()
+	private static List<NodeType> makeTypes(INamespaceSymbol symbol) => [.. symbol.GetMembers()
 		.SelectMany(it => {
 			if (it is INamespaceSymbol namespaceSymbol) {
 				return makeTypes(namespaceSymbol);
 			}
 
-			return [NodeType.from(it as INamedTypeSymbol)];
-		}).ToList();
+			return [NodeType.from((it as INamedTypeSymbol)!)];
+		})];
 }
 
 public record NodeType(
@@ -100,19 +100,17 @@ public record NodeType(
 		@namespace: symbol.ContainingNamespace?.let(it =>
 			it.IsGlobalNamespace ? "" : it.ToDisplayString()) ?? "",
 		baseType: symbol.BaseType?.let(NodeTypeReference.from),
-		interfaces: symbol.Interfaces.Select(NodeTypeReference.from).ToList(),
-		attributes: symbol.GetAttributes().Select(NodeAttribute.from).ToList(),
-		constructors: symbol.InstanceConstructors.Select(NodeConstructor.from).ToList(),
-		events: symbol.GetMembers()
+		interfaces: [.. symbol.Interfaces.Select(NodeTypeReference.from)],
+		attributes: [.. symbol.GetAttributes().Select(NodeAttribute.from)],
+		constructors: [.. symbol.InstanceConstructors.Select(NodeConstructor.from)],
+		events: [.. symbol.GetMembers()
 			.Where(it => it is IEventSymbol)
 			.Cast<IEventSymbol>()
-			.Select(NodeEvent.from)
-			.ToList(),
-		fields: symbol.GetMembers()
+			.Select(NodeEvent.from)],
+		fields: [.. symbol.GetMembers()
 			.Where(it => it is IFieldSymbol)
 			.Cast<IFieldSymbol>()
-			.Select(NodeField.from)
-			.ToList(),
+			.Select(NodeField.from)],
 		methods: symbol.GetMembers()
 			.Where(it => it is IMethodSymbol)
 			.Cast<IMethodSymbol>()

@@ -18,21 +18,78 @@ package compiler.clr.frontend
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.io.File
+import java.nio.file.Path
+import java.nio.file.Paths
+import kotlin.io.path.absolutePathString
 
-fun resolveAssembly(programPath: String, assemblies: List<String>, assembly: String): NodeAssembly {
+fun resolveAssembly(
+	programPath: String,
+	assemblies: List<String>,
+	assembly: String,
+	dotnetPath: String,
+	cacheSystemPath: Path,
+	cacheRootPath: Path,
+	cacheLevel: CacheLevel): NodeAssembly {
+	val filename = File(assembly).name + ".resolved"
+	val isSystemPackage = assembly.startsWith(dotnetPath)
+	val shouldCache = shouldCache(isSystemPackage, cacheLevel)
+
+	val cacheFile = when (isSystemPackage) {
+		false -> Paths.get(cacheRootPath.absolutePathString(), filename)
+		true -> Paths.get(cacheSystemPath.absolutePathString(), filename)
+	}.let { File (it.absolutePathString())}
+
+	if (shouldCache && cacheFile.exists()) {
+		println("use cached: $assembly")
+		cacheFile.inputStream().use { stream ->
+			val string = stream.readAllBytes().toString(Charsets.UTF_8)
+
+			try {
+				return Json.decodeFromString<NodeAssembly>(string)
+			} catch (e: Exception) {
+				println("exception: decoding \"${cacheFile.absolutePath}\"")
+			}
+		}
+	}
+
 	println("processing: $assembly")
 	val process = ProcessBuilder("dotnet", "\"$programPath\"", "\"${assemblies.joinToString(";")}\" \"$assembly\"")
 		.start()
 	val json = process.inputReader(Charsets.UTF_8).use {
 		it.readText()
 	}
-	return try {
+	val resolved = try {
 		Json.decodeFromString<NodeAssembly>(json)
 	} catch (e: Exception) {
 		println("exception: dotnet \"$programPath\" \"${assemblies.joinToString(";")}\" \"$assembly\"")
 		println(json)
 		throw e
 	}
+
+	if (shouldCache) {
+		cacheFile.outputStream().use { stream ->
+			stream.writer(Charsets.UTF_8).use { writer ->
+				writer.write(json)
+			}
+		}
+	}
+
+	return resolved
+}
+
+private fun shouldCache(isSystemPackage: Boolean, cacheLavel: CacheLevel): Boolean {
+	return when (cacheLavel) {
+		CacheLevel.None -> false
+		CacheLevel.System -> isSystemPackage
+		CacheLevel.All -> true
+	}
+}
+
+enum class CacheLevel {
+	None,
+	System,
+	All,
 }
 
 abstract class AssemblyNode

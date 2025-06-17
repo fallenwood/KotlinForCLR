@@ -1,5 +1,5 @@
 MODULE_FRAGMENT name:<main>
-  FILE fqName:<root> fileName:C:/Users/Yurin/IdeaProjects/KotlinForCLR/kotlin/src/Main.kt
+  FILE fqName:<root> fileName:D:/Workspace/KotlinForCLR/kotlin/src/Main.kt
     CLASS FILE_CLASS CLASS name:MainKt modality:FINAL visibility:public superTypes:[kotlin.Any]
       $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.MainKt
       FUN name:maxOf visibility:public modality:FINAL <> (a:kotlin.Int, b:kotlin.Int) returnType:kotlin.Int
