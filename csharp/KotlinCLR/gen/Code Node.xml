@@ -13,34 +13,63 @@
             <CodeNode.SingleLine>
                 <PlainNode.Plain>public </PlainNode.Plain>
                 <PlainNode.Plain>static </PlainNode.Plain>
-                <PlainNode.Plain>global::System.Int32 </PlainNode.Plain>
-                <PlainNode.Plain>maxOf(</PlainNode.Plain>
-                <PlainNode.Plain>global::System.Int32 a, global::System.Int32 b</PlainNode.Plain>
+                <PlainNode.Plain>void </PlainNode.Plain>
+                <PlainNode.Plain>main(</PlainNode.Plain>
+                <PlainNode.Plain></PlainNode.Plain>
+                <PlainNode.Plain>)</PlainNode.Plain>
+            </CodeNode.SingleLine>
+            <PaddingNode.Block>
+                <CodeNode.SingleLine>
+                    <PlainNode.Plain>global::System.Collections.Generic.IReadOnlyList</PlainNode.Plain>
+                    <PlainNode.Plain> </PlainNode.Plain>
+                    <PlainNode.Plain>items</PlainNode.Plain>
+                    <PlainNode.Plain> = </PlainNode.Plain>
+                    <CodeNode.CodeList>
+                        <PlainNode.Plain>global::kotlin.collections.CollectionsKt</PlainNode.Plain>
+                        <PlainNode.Plain>.</PlainNode.Plain>
+                        <PlainNode.Plain>listOf</PlainNode.Plain>
+                        <PlainNode.Plain>(</PlainNode.Plain>
+                        <PlainNode.MultiLine>
+                            <PlainNode.Plain>/*</PlainNode.Plain>
+                            <PlainNode.Plain>Unsupported expression: IrVarargImpl</PlainNode.Plain>
+                            <PlainNode.Plain>at IrExpression.visit</PlainNode.Plain>
+                            <PlainNode.Plain>*/</PlainNode.Plain>
+                        </PlainNode.MultiLine>
+                        <PlainNode.Plain>)</PlainNode.Plain>
+                    </CodeNode.CodeList>
+                    <PlainNode.Plain>;</PlainNode.Plain>
+                </CodeNode.SingleLine>
+                <CodeNode.SingleLine>
+                    <CodeNode.CodeList>
+                        <PlainNode.Plain>global::kotlin.io.ConsoleKt</PlainNode.Plain>
+                        <PlainNode.Plain>.</PlainNode.Plain>
+                        <PlainNode.Plain>println</PlainNode.Plain>
+                        <PlainNode.Plain>(</PlainNode.Plain>
+                        <PlainNode.Plain>items</PlainNode.Plain>
+                        <PlainNode.Plain>)</PlainNode.Plain>
+                    </CodeNode.CodeList>
+                    <PlainNode.Plain>;</PlainNode.Plain>
+                </CodeNode.SingleLine>
+            </PaddingNode.Block>
+        </CodeNode.MultiLine>
+        <CodeNode.None />
+        <CodeNode.MultiLine>
+            <CodeNode.SingleLine>
+                <PlainNode.Plain>public </PlainNode.Plain>
+                <PlainNode.Plain>static </PlainNode.Plain>
+                <PlainNode.Plain>void </PlainNode.Plain>
+                <PlainNode.Plain>Main(</PlainNode.Plain>
+                <PlainNode.Plain>global::System.String[] args</PlainNode.Plain>
                 <PlainNode.Plain>)</PlainNode.Plain>
             </CodeNode.SingleLine>
             <PaddingNode.Block>
                 <CodeNode.SingleLine>
                     <CodeNode.CodeList>
-                        <PlainNode.Plain>return </PlainNode.Plain>
-                        <PaddingNode.IfExp>
-                            <condition>
-                                <CodeNode.CodeList>
-                                    <PlainNode.Plain>(</PlainNode.Plain>
-                                    <PlainNode.Plain>a</PlainNode.Plain>
-                                    <PlainNode.Plain>)</PlainNode.Plain>
-                                    <PlainNode.Plain> > </PlainNode.Plain>
-                                    <PlainNode.Plain>(</PlainNode.Plain>
-                                    <PlainNode.Plain>b</PlainNode.Plain>
-                                    <PlainNode.Plain>)</PlainNode.Plain>
-                                </CodeNode.CodeList>
-                            </condition>
-                            <content type="global::System.Int32">
-                                <PlainNode.Plain>a</PlainNode.Plain>
-                            </content>
-                            <else type="global::System.Int32">
-                                <PlainNode.Plain>b</PlainNode.Plain>
-                            </else>
-                        </PaddingNode.IfExp>
+                        <PlainNode.Plain>global::MainKt</PlainNode.Plain>
+                        <PlainNode.Plain>.</PlainNode.Plain>
+                        <PlainNode.Plain>main</PlainNode.Plain>
+                        <PlainNode.Plain>(</PlainNode.Plain>
+                        <PlainNode.Plain>)</PlainNode.Plain>
                     </CodeNode.CodeList>
                     <PlainNode.Plain>;</PlainNode.Plain>
                 </CodeNode.SingleLine>

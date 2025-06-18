@@ -1,17 +1,14 @@
 MODULE_FRAGMENT name:<main>
   FILE fqName:<root> fileName:C:/Users/Yurin/IdeaProjects/KotlinForCLR/kotlin/src/Main.kt
-    FUN name:maxOf visibility:public modality:FINAL <> (a:kotlin.Int, b:kotlin.Int) returnType:kotlin.Int
-      VALUE_PARAMETER name:a index:0 type:kotlin.Int
-      VALUE_PARAMETER name:b index:1 type:kotlin.Int
+    FUN name:main visibility:public modality:FINAL <> () returnType:kotlin.Unit
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public final fun maxOf (a: kotlin.Int, b: kotlin.Int): kotlin.Int declared in <root>'
-          WHEN type=kotlin.Int origin=IF
-            BRANCH
-              if: CALL 'public final fun greater (arg0: kotlin.Int, arg1: kotlin.Int): kotlin.Boolean declared in kotlin.internal.ir' type=kotlin.Boolean origin=GT
-                arg0: GET_VAR 'a: kotlin.Int declared in <root>.maxOf' type=kotlin.Int origin=null
-                arg1: GET_VAR 'b: kotlin.Int declared in <root>.maxOf' type=kotlin.Int origin=null
-              then: GET_VAR 'a: kotlin.Int declared in <root>.maxOf' type=kotlin.Int origin=null
-            BRANCH
-              if: CONST Boolean type=kotlin.Boolean value=true
-              then: GET_VAR 'b: kotlin.Int declared in <root>.maxOf' type=kotlin.Int origin=null
+        VAR name:items type:kotlin.collections.List<kotlin.String> [val]
+          CALL 'public final fun listOf <T> (vararg elements: T of kotlin.collections.CollectionsKt.listOf): kotlin.collections.List<T of kotlin.collections.CollectionsKt.listOf> declared in kotlin.collections.CollectionsKt' type=kotlin.collections.List<kotlin.String> origin=null
+            <T>: kotlin.String
+            elements: VARARG type=kotlin.Array varargElementType=kotlin.String
+              CONST String type=kotlin.String value="apple"
+              CONST String type=kotlin.String value="banana"
+              CONST String type=kotlin.String value="kiwifruit"
+        CALL 'public final fun println (message: kotlin.Any): kotlin.Unit declared in kotlin.io.ConsoleKt' type=kotlin.Unit origin=null
+          message: GET_VAR 'val items: kotlin.collections.List<kotlin.String> [val] declared in <root>.main' type=kotlin.collections.List<kotlin.String> origin=null
 

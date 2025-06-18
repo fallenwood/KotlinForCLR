@@ -42,6 +42,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
+import org.jetbrains.kotlin.fir.types.impl.ConeTypeParameterTypeImpl
 import org.jetbrains.kotlin.javac.resolve.classId
 import org.jetbrains.kotlin.name.*
 import org.jetbrains.kotlin.types.Variance
@@ -307,8 +308,7 @@ class ClrSymbolProvider(
 				EffectiveVisibility.Public
 			)
 
-			typeParameters += node.typeParameters
-				.map { buildTypeParameter(it, functionSymbol).fir }
+			val typeParameterSymbols = node.typeParameters.map { buildTypeParameter(it, functionSymbol) }
 
 			returnTypeRef = when {
 				node.attributes.mapNotNull { it.type }.any {
@@ -326,8 +326,8 @@ class ClrSymbolProvider(
 					name = node.returnType.name,
 					isReturnPosition = true,
 					typeParameters = node.typeParameters.map {
-						typeParameters.find { typeParameter ->
-							typeParameter.name.asString() == it.name
+						typeParameterSymbols.find { symbol ->
+							symbol.name.asString() == it.name
 						}!!
 					}
 				)
@@ -357,7 +357,7 @@ class ClrSymbolProvider(
 						false -> 0
 					}
 				)
-				.map { buildValueParameter(it, functionSymbol, typeParameters).fir }
+				.map { buildValueParameter(it, functionSymbol, typeParameterSymbols).fir }
 			if (isExtension) {
 				receiverParameter = FirReceiverParameterSymbol().also { parameterSymbol ->
 					buildReceiverParameter {
@@ -373,6 +373,8 @@ class ClrSymbolProvider(
 			}
 			name = Name.identifier(node.name)
 			symbol = functionSymbol
+
+			typeParameters += typeParameterSymbols.map { it.fir }
 		}
 		clrSymbolNamesProvider.registerCallableName(functionSymbol.packageFqName(), functionSymbol.name)
 		functionPackages.getOrPut(
@@ -397,8 +399,7 @@ class ClrSymbolProvider(
 				EffectiveVisibility.Public
 			)
 
-			typeParameters += node.typeParameters
-				.map { buildTypeParameter(it, functionSymbol).fir }
+			val typeParameterSymbols = node.typeParameters.map { buildTypeParameter(it, functionSymbol) }
 
 			returnTypeRef = when {
 				node.attributes.mapNotNull { it.type }.any {
@@ -416,7 +417,7 @@ class ClrSymbolProvider(
 					name = node.returnType.name,
 					isReturnPosition = true,
 					typeParameters = node.typeParameters.map {
-						typeParameters.find { typeParameter ->
+						typeParameterSymbols.find { typeParameter ->
 							typeParameter.name.asString() == it.name
 						}!!
 					}
@@ -431,7 +432,9 @@ class ClrSymbolProvider(
 				}
 			}
 
-			valueParameters += node.parameters.map { buildValueParameter(it, functionSymbol, typeParameters).fir }
+			valueParameters += node.parameters.map {
+				buildValueParameter(it, functionSymbol, typeParameterSymbols).fir
+			}
 			name = Name.identifier(node.name)
 			symbol = functionSymbol
 			if (node.isStatic) {
@@ -446,13 +449,16 @@ class ClrSymbolProvider(
 					argumentMapping = FirEmptyAnnotationArgumentMapping
 				}
 			}
+
+			typeParameters += node.typeParameters
+				.map { buildTypeParameter(it, functionSymbol).fir }
 		}
 	}
 
 	private fun buildValueParameter(
 		node: NodeParameter,
 		containingSymbol: FirFunctionSymbol<*>,
-		typeParameters: List<FirTypeParameter>,
+		typeParameters: List<FirTypeParameterSymbol>,
 	) = FirValueParameterSymbol(
 		name = Name.identifier(node.name!!)
 	).also { parameterSymbol ->
@@ -460,20 +466,6 @@ class ClrSymbolProvider(
 			moduleData = firModuleData
 			origin = FirDeclarationOrigin.Library
 			returnTypeRef = when {
-				node.type.typeParameter != null -> {
-					buildResolvedTypeRef {
-						coneType = ConeTypeVariableType(
-							false,
-							typeConstructor = ConeTypeVariableTypeConstructor(
-								node.type.typeParameter.name,
-								typeParameters.find { it.name.asString() == node.type.typeParameter.name }?.let {
-									ConeTypeParameterLookupTag(it.symbol)
-								}
-							)
-						)
-					}
-				}
-
 				node.type.typeKind in listOf(2, 7, 10) -> resolveFirTypeRefForClr(
 					namespace = node.type.namespace ?: "",
 					name = node.type.name,
@@ -485,12 +477,9 @@ class ClrSymbolProvider(
 					coneType = ConeClassLikeTypeImpl(
 						classId("kotlin", "Array").toLookupTag(),
 						typeParameters.map {
-							ConeTypeVariableType(
-								false,
-								ConeTypeVariableTypeConstructor(
-									it.name.asString(),
-									ConeTypeParameterLookupTag(it.symbol)
-								)
+							ConeTypeParameterTypeImpl(
+								it.toLookupTag(),
+								false
 							)
 						}.toTypedArray(),
 						false
@@ -525,6 +514,13 @@ class ClrSymbolProvider(
 				containingDeclarationSymbol = containingSymbol
 				variance = Variance.INVARIANT
 				isReified = true
+				bounds += buildResolvedTypeRef {
+					coneType = ConeClassLikeTypeImpl(
+						classId("kotlin", "Any").toLookupTag(),
+						emptyArray(),
+						true
+					)
+				}
 			}
 		}
 
@@ -538,7 +534,7 @@ class ClrSymbolProvider(
 		namespace: String,
 		name: String,
 		isReturnPosition: Boolean,
-		typeParameters: List<FirTypeParameter>,
+		typeParameters: List<FirTypeParameterSymbol>,
 	): FirResolvedTypeRef {
 		try {
 			val classId = when (namespace) {
@@ -578,12 +574,9 @@ class ClrSymbolProvider(
 				coneType = ConeClassLikeTypeImpl(
 					classId.toLookupTag(),
 					typeParameters.map {
-						ConeTypeVariableType(
-							false,
-							ConeTypeVariableTypeConstructor(
-								it.name.asString(),
-								ConeTypeParameterLookupTag(it.symbol)
-							)
+						ConeTypeParameterTypeImpl(
+							it.toLookupTag(),
+							false
 						)
 					}.toTypedArray(),
 					false
